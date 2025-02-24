@@ -1,22 +1,34 @@
-use crate::anisong::{Anime, AnisongClient};
+use crate::{Result, Error};
+use crate::anisong::{Anime, AnisongClient, MalIdsSearchRequest};
 use crate::japanese_processing::{process_possible_japanese, process_similarity};
-use crate::spotify::responses::{CurrentlyPlayingResponse, TrackObject};
-use crate::types::{
-    self, Anime as ReturnAnime, AnimeTrackIndex, AnimeType, JikanAnime, NewSong, SongHit, SongInfo,
-    SongMiss,
-};
-use crate::{Error, Result, spotify};
+use crate::spotify::responses::TrackObject;
+use crate::types::{self, Anime as ReturnAnime, JikanAnime, JikanResponses, JikanSuccessResponse, NewSong, SongHit, SongInfo, SongMiss};
 
+use axum::http::response;
 use fuzzywuzzy::fuzz;
 use itertools::Itertools;
 use reqwest::Client;
-use std::cmp::max;
-use std::collections::HashSet;
 use std::sync::Arc;
+
+pub async fn fetch_jikan(mal_id: i32) -> Result<JikanAnime> {
+    let response: JikanResponses = Client::new()
+                    .get(format!(
+                        "https://api.jikan.moe/v4/anime/{}",
+                        mal_id
+                    ))
+                    .send()
+                    .await?
+                    .json()
+                    .await.unwrap();
+
+    match response {
+        JikanResponses::Success(value) => Ok(value.data),
+        JikanResponses::Fail(_) => Err(Error::BadRequest { url: "https://api.jikan.moe/v4/anime/".to_string(), status_code: axum::http::StatusCode::TOO_MANY_REQUESTS }),
+    }
+}
 
 pub async fn find_songs_by_artists(
     song: &TrackObject,
-    accuracy_cutoff: f32,
     anisong_db: Arc<AnisongClient>,
 ) -> Result<Vec<(Anime, f32)>> {
     let artists = &song.artists;
@@ -24,17 +36,20 @@ pub async fn find_songs_by_artists(
 
     for artist in artists {
         let romanji_artist = process_possible_japanese(&artist.name);
-        anime_song_entries.extend(anisong_db.get_animes_by_artist_name(romanji_artist).await?);
+        let songs = anisong_db
+            .get_animes_by_artist_name(romanji_artist)
+            .await
+            .unwrap();
+        anime_song_entries.extend(songs);
     }
 
     let romanji_song_title = process_possible_japanese(&song.name);
     Ok(anime_song_entries
         .into_iter()
         .map(|anime| {
-            let score = process_similarity(&romanji_song_title, &anime.song_name);
+            let score = process_similarity(&romanji_song_title, &anime.songName);
             (anime, score)
         })
-        .filter(|(_, score)| *score > accuracy_cutoff)
         .collect())
 }
 
@@ -46,12 +61,16 @@ pub async fn find_most_likely_anime(
     let romanji_title = process_possible_japanese(&song.name);
 
     let mut weighed_anime =
-        find_songs_by_artists(&song, accuracy_cutoff, anisong_db.clone()).await?;
+        find_songs_by_artists(&song, anisong_db.clone()).await.unwrap();
+
+
+    println!("{}", weighed_anime.len());
 
     if !weighed_anime.is_empty() {
         weighed_anime.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
         let max_score = weighed_anime[0].1;
+
 
         if max_score > accuracy_cutoff {
             let (animehit, more_by_artists): (Vec<(Anime, f32)>, Vec<(Anime, f32)>) = weighed_anime
@@ -60,34 +79,24 @@ pub async fn find_most_likely_anime(
 
             let mut anime_hit_info_vec = Vec::new();
             for anime in animehit {
-                let extra_info: JikanAnime = Client::new()
-                    .get(format!(
-                        "https://api.jikan.moe/v4/anime/{}",
-                        anime.0.linked_ids.myanimelist
-                    ))
-                    .send()
-                    .await?
-                    .json()
-                    .await?;
-                let anime_info = ReturnAnime::new(&anime.0, &extra_info)?;
-                anime_hit_info_vec.push(anime_info);
-                // Add to database
+                if anime.0.linked_ids.myanimelist.is_some() {
+                    let extra_info = fetch_jikan(anime.0.linked_ids.myanimelist.unwrap()).await;
+                    if extra_info.is_ok() {
+                        let anime_info = ReturnAnime::new(&anime.0, &extra_info.unwrap().images.webp.image_url)?;
+                        anime_hit_info_vec.push(anime_info);
+                    }
+                }
             }
+
 
             let mut anime_more_by_artist_info_vec = Vec::new();
             for anime in more_by_artists {
-                let extra_info: JikanAnime = Client::new()
-                    .get(format!(
-                        "https://api.jikan.moe/v4/anime/{}",
-                        anime.0.linked_ids.myanimelist
-                    ))
-                    .send()
-                    .await?
-                    .json()
-                    .await?;
-
-                let anime_info = ReturnAnime::new(&anime.0, &extra_info)?;
-                anime_more_by_artist_info_vec.push(anime_info);
+                if anime.0.linked_ids.myanimelist.is_some() {
+                    let extra_info = fetch_jikan(anime.0.linked_ids.myanimelist.unwrap()).await.map(|info| info.images.webp.image_url)
+                    .unwrap_or_else(|_| String::new());
+                    let anime_info = ReturnAnime::new(&anime.0, &extra_info)?;
+                    anime_more_by_artist_info_vec.push(anime_info);
+                }
 
                 // Add to database
             }
@@ -112,18 +121,12 @@ pub async fn find_most_likely_anime(
 
         let mut found_anime = Vec::new();
         for anime in weighed_anime {
-            let extra_info: JikanAnime = Client::new()
-                .get(format!(
-                    "https://api.jikan.moe/v4/anime/{}",
-                    anime.0.linked_ids.myanimelist
-                ))
-                .send()
-                .await?
-                .json()
-                .await?;
-
-            let anime_info = types::Anime::new(&anime.0, &extra_info)?;
-            found_anime.push(anime_info);
+            if anime.0.linked_ids.myanimelist.is_some() {
+                let extra_info = fetch_jikan(anime.0.linked_ids.myanimelist.unwrap()).await.map(|info| info.images.webp.image_url)
+                .unwrap_or_else(|_| String::new());
+                let anime_info = ReturnAnime::new(&anime.0, &extra_info)?;
+                found_anime.push(anime_info);
+            }
 
             // Add to database
         }
@@ -145,7 +148,7 @@ pub async fn find_most_likely_anime(
     } else {
         let animes = anisong_db
             .get_animes_by_song_title(romanji_title.clone())
-            .await?;
+            .await.unwrap();
         for anime in animes {
             let artists_string: String = anime
                 .artists
@@ -193,17 +196,12 @@ pub async fn find_most_likely_anime(
 
             let mut anime_hit_info_vec = Vec::new();
             for anime in weighed_anime {
-                let extra_info: JikanAnime = Client::new()
-                    .get(format!(
-                        "https://api.jikan.moe/v4/anime/{}",
-                        anime.0.linked_ids.myanimelist
-                    ))
-                    .send()
-                    .await?
-                    .json()
-                    .await?;
-                let anime_info = ReturnAnime::new(&anime.0, &extra_info)?;
-                anime_hit_info_vec.push(anime_info);
+                if anime.0.linked_ids.myanimelist.is_some() {
+                    let extra_info = fetch_jikan(anime.0.linked_ids.myanimelist.unwrap()).await.map(|info| info.images.webp.image_url)
+                    .unwrap_or_else(|_| String::new());
+                    let anime_info = ReturnAnime::new(&anime.0, &extra_info)?;
+                    anime_hit_info_vec.push(anime_info);
+                }
                 // Add to database
             }
 
@@ -243,24 +241,22 @@ pub async fn find_most_likely_anime(
 
         let mut found_anime = Vec::new();
         for anime in weighed_anime {
-            let extra_info: JikanAnime = Client::new()
-                .get(format!(
-                    "https://api.jikan.moe/v4/anime/{}",
-                    anime.0.linked_ids.myanimelist
-                ))
-                .send()
-                .await?
-                .json()
-                .await?;
-
-            let anime_info = types::Anime::new(&anime.0, &extra_info)?;
-            found_anime.push(anime_info);
+            if anime.0.linked_ids.myanimelist.is_some() {
+                let extra_info = fetch_jikan(anime.0.linked_ids.myanimelist.unwrap()).await.map(|info| info.images.webp.image_url)
+                .unwrap_or_else(|_| String::new());
+                let anime_info = ReturnAnime::new(&anime.0, &extra_info)?;
+                found_anime.push(anime_info);
+            }
         }
 
         let miss = SongMiss {
             song_info: SongInfo {
                 title: song.name.clone(),
-                artists: song.artists.iter().map(|artist| artist.name.clone()).collect(),
+                artists: song
+                    .artists
+                    .iter()
+                    .map(|artist| artist.name.clone())
+                    .collect(),
                 album_picture_url: song.album.images[0].url.clone(),
             },
             possible_anime: found_anime,

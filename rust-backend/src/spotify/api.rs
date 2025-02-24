@@ -1,10 +1,9 @@
 use crate::{AppState, Error, Result};
 
 use super::responses::{CurrentlyPlayingResponse, SpotifyTokenResponse};
-use axum::extract::{Query, State};
-use axum::http::response;
+use axum::response::IntoResponse;
 use reqwest::header::{HeaderMap, HeaderValue};
-use reqwest::{Client, redirect};
+use reqwest::Client;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -78,7 +77,7 @@ pub async fn currently_playing(session: Session) -> Result<CurrentlyPlayingRespo
         .await?;
 
     match response.status() {
-        status if status.is_success() => Ok(response.json().await.unwrap()),
+        status if status.is_success() => Ok(response.json().await?),
         status => Err(Error::BadRequest {
             url: "https://api.spotify.com/v1/me/player/currently-playing".to_string(),
             status_code: (status),

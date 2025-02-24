@@ -1,5 +1,6 @@
 use axum::response::IntoResponse;
 use serde::{Serialize, Deserialize};
+use serde_json::to_string;
 use crate::{anisong, Error, Result};
 
 #[derive(Serialize)]
@@ -70,7 +71,7 @@ impl AnimeTrackIndex {
 
 
 #[derive(Serialize)]
-enum AnimeIndex {
+pub enum AnimeIndex {
     Season(u32),
     Movie(u32),
     ONA{year: u32}
@@ -94,6 +95,7 @@ impl AnimeIndex {
         let track_type = parts[0];
 
         match track_type {
+            "TV" => Ok(AnimeIndex::Season(0)),
             "Season" => Ok(AnimeIndex::Season(track_number)),
             "Movie" => Ok(AnimeIndex::Movie(track_number)),
             "ONA" => Ok(AnimeIndex::ONA{year: track_number}),
@@ -111,17 +113,19 @@ pub struct Anime {
     pub track_index: AnimeTrackIndex,
     pub anime_type: Option<AnimeType>,
     pub image_url: String,
+    pub linked_ids: anisong::AnimeListLinks
 }
 impl Anime {
-    pub fn new(anisong_anime: &anisong::Anime, jikan_anime: &JikanAnime) -> Result<Self> {
+    pub fn new(anisong_anime: &anisong::Anime, image_url: &str) -> Result<Self> {
         Ok(Self {
-                    title: anisong_anime.anime_en_name.clone(),
-                    title_japanese: anisong_anime.anime_jp_name.clone(),
-                    anime_index: AnimeIndex::from_str(&anisong_anime.anime_category)?,
-                    track_index: AnimeTrackIndex::from_str(&anisong_anime.song_type)?,
+                    title: anisong_anime.animeENName.clone(),
+                    title_japanese: anisong_anime.animeJPName.clone(),
+                    anime_index: AnimeIndex::from_str(&anisong_anime.animeCategory).unwrap(),
+                    track_index: AnimeTrackIndex::from_str(&anisong_anime.songType).unwrap(),
 
-                    anime_type: AnimeType::new(&anisong_anime.anime_type).ok(),
-                    image_url: jikan_anime.images.webp.image_url.clone(),
+                    anime_type: AnimeType::new(&anisong_anime.animeType).ok(),
+                    image_url: image_url.to_string(),
+                    linked_ids: anisong_anime.linked_ids.clone(),
                 })
     }
 }
@@ -157,6 +161,23 @@ impl IntoResponse for ContentUpdate {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum JikanResponses {
+    Fail(JikanFailResponse),
+    Success(JikanSuccessResponse),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JikanFailResponse {
+    status: String,
+    message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JikanSuccessResponse {
+    pub data: JikanAnime
+}
 // Jikan API response types
 #[derive(Debug, Serialize, Deserialize)]
 pub struct JikanAnime {

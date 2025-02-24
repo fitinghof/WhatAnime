@@ -1,15 +1,29 @@
-use std::{collections::HashMap, sync::Arc, time::{SystemTime, UNIX_EPOCH}};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
-use axum::{extract::{Query, State}, http::HeaderValue, response::{IntoResponse, Redirect}};
-use base64::{engine, Engine};
 use axum::http::HeaderMap;
+use axum::{
+    extract::{Query, State},
+    http::HeaderValue,
+    response::{IntoResponse, Redirect, Response},
+};
+use base64::{Engine, engine};
 use reqwest::Client;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
 
 use crate::{AppState, spotify::responses::SpotifyTokenResponse};
 
-#[derive(Deserialize)]
+//#[derive(Deserialize)]
+// enum CodeOrState {
+//     error(String),
+//     state(String),
+// }
+
+#[derive(Deserialize, Serialize)]
 pub struct CallbackParams {
     code: String,
     state: String,
@@ -19,14 +33,15 @@ pub async fn callback(
     Query(params): Query<CallbackParams>,
     State(app_state): State<Arc<AppState>>,
     session: Session,
-) -> axum::response::Response {
-    let session_id = session.id();
-    println!("Former Session state: {}", {&params.state});
-    println!("Session ID: {:?}", session_id);
-    let session_state = session.get::<String>("state").await.unwrap();
+) -> Result<axum::response::Redirect, axum::http::StatusCode> {
+    session.load().await.unwrap();
 
-    if session_state.is_none_or(|value| value != params.state){
-        return axum::http::StatusCode::BAD_REQUEST.into_response();
+    let session_state = session.get::<String>("state").await.unwrap_or(None);
+    if session_state.as_deref() != Some(&params.state) {
+        println!("Sate missmatch occured, probably");
+        println!("{}, {:?}", params.state, session_state);
+        return Err(axum::http::StatusCode::BAD_REQUEST);
+
     }
 
     let client_creds = format!("{}:{}", app_state.client_id, app_state.client_secret);
@@ -49,9 +64,9 @@ pub async fn callback(
     );
 
     let token_response = Client::new()
-        .post("https://accounts.spotify.com/authorize?")
+        .post("https://accounts.spotify.com/api/token")
         .headers(token_headers)
-        .json(&token_data)
+        .form(&token_data)
         .send()
         .await
         .unwrap();
@@ -79,17 +94,10 @@ pub async fn callback(
             .await
             .unwrap();
 
-        let redirect_result = session
-            .remove::<String>("redirect_url")
-            .await
-            .ok()
-            .flatten();
+        session.save().await.unwrap();
 
-        match redirect_result {
-            Some(value) => return Redirect::to(&value).into_response(),
-            _ => return Redirect::to(&format!("http://{}/", app_state.ip)).into_response(),
-        }
+        return Ok(Redirect::to(&format!("http://127.0.0.1:5173/")));
     }
 
-    return axum::http::StatusCode::BAD_REQUEST.into_response();
+    return Err(axum::http::StatusCode::BAD_REQUEST);
 }

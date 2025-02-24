@@ -1,0 +1,196 @@
+/* General Styles */
+body {
+    background-color: #333333; /* Set background color */
+    color: #f0f0f0; /* Set text color */
+    font-family: Arial, sans-serif;
+}
+
+h1 {
+    color: #ff6347; /* Set text color for h1 */
+}
+
+.preserve-whitespace {
+    white-space: pre-wrap; /* Preserve newlines and spaces */
+}
+
+h3 {
+    color: #4682b4; /* Set text color for h3 */
+}
+
+a {
+    color: #4682b4;
+}
+
+.favicon {
+    border-radius: 50%; /* Makes it round */
+    width: 32px; /* Adjust as needed */
+    height: 32px;
+}
+
+/* Now Playing Section */
+.now-playing-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    background: #333333;
+    padding: 20px;
+    /*No width cause then it becomes unaligend???*/
+}
+
+.now-playing {
+    display: flex;
+    align-items: center;
+    background-color: #252525;
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    width: 90%;  /* Adjust to fit the screen width */
+}
+
+.album-art {
+    width: 70px;
+    height: 70px;
+    border-radius: 8px;
+    margin-right: 12px;
+    object-fit: cover;
+}
+
+.song-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0px; /* Ensure no gap between title and artist names */
+}
+
+.song-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #d47508;
+    margin: 0; /* Remove default margin */
+}
+
+.artist-name {
+    font-size: 14px;
+    color: #b3b3b3;
+    margin: 0; /* Remove default margin */
+}
+
+/* Anime Section */
+.separator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin: 10px 0;
+    font-size: 16px;
+    font-weight: bold;
+    color: #d47508;
+}
+
+.separator::before,
+.separator::after {
+    content: "";
+    flex-grow: 1;
+    height: 2px;
+    background-color: #555;
+    margin: 0 10px;
+}
+
+.info-text {
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    color: #f0f0f0;
+    margin-bottom: 15px;
+}
+
+/* Anime List */
+.anime-list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    justify-content: center;
+    background: #333333;
+    padding: 20px;
+    /*No width cause then it becomes unaligend???*/
+}
+
+.anime-item {
+    display: flex;
+    align-items: center;
+    background-color: #252525;
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    width: 90%;  /* Adjust width */
+    flex-direction: row; /* Make sure the layout is horizontal */
+}
+
+.anime-art {
+    order: 0;
+    width: 70px;
+    height: 70px;
+    border-radius: 8px;
+    margin-right: 20px;
+    object-fit: cover;
+}
+
+.anime-info {
+    order: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.anime-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #d47508;
+}
+
+.anime-season,
+.anime-opening,
+.anime-type {
+    font-size: 14px;
+    color: #b3b3b3;
+}
+
+.anime-season {
+    margin-top: 5px;
+}
+
+.anime-type {
+    margin-top: 5px;
+}
+
+.anime-opening {
+    margin-top: 5px;
+}
+
+.anime-episodes {
+    font-size: 14px;
+    color: #b3b3b3;
+}
+
+.anime-links {
+    margin-top: 10px;
+    font-size: 14px;
+    color: #f0f0f0;
+    display: flex;  /* Use flexbox for row layout */
+    gap: 15px;  /* Space out the links */
+    flex-wrap: wrap;  /* Allow wrapping if the links are too wide */
+}
+
+.anime-links a {
+    color: #4682b4;  /* Blue color for links */
+    text-decoration: none;
+    white-space: nowrap;  /* Prevent text from breaking within links */
+}
+
+.anime-links a:hover {
+    text-decoration: underline;
+}

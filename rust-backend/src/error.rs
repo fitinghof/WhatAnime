@@ -1,5 +1,7 @@
 // error.rs
 
+use std::fmt::Display;
+
 use axum::response::IntoResponse;
 use axum::http::StatusCode;
 
@@ -10,7 +12,7 @@ impl IntoResponse for Error {
         StatusCode::INTERNAL_SERVER_ERROR.into_response()
     }
 }
-
+#[derive(Debug)]
 pub enum Error {
     Unauthorized,
     BadRequest{url: String, status_code: axum::http::StatusCode},

@@ -17,7 +17,7 @@ pub struct Device {
     pub is_restricted: bool,
     pub name: String,
     pub r#type: String,
-    pub volume_percent: Option<i32>,
+    pub volume_percent: Option<u32>,
     pub supports_volume: bool,
 }
 
@@ -37,8 +37,8 @@ pub struct Context {
 #[derive(Deserialize)]
 pub struct Image {
     pub url: String,
-    pub height: i32,
-    pub width: i32,
+    pub height: u32,
+    pub width: u32,
 }
 
 #[derive(Deserialize)]
@@ -59,7 +59,7 @@ pub struct SimplifiedArtist {
 #[derive(Deserialize)]
 pub struct Album {
     pub album_type: String,
-    pub total_tracks: i32,
+    pub total_tracks: u32,
     pub available_markets: Vec<String>,
     pub external_urls: ExternalUrls,
     pub href: String,
@@ -76,9 +76,9 @@ pub struct Album {
 
 #[derive(Deserialize)]
 pub struct ExternalIds {
-    pub isrc: String,
-    pub ean: String,
-    pub upc: String,
+    pub isrc: Option<String>,
+    pub ean: Option<String>,
+    pub upc: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -89,31 +89,33 @@ pub struct TrackObject {
     pub album: Album,
     pub artists: Vec<SimplifiedArtist>,
     pub available_markets: Vec<String>,
-    pub disc_number: i32,
-    pub duration_ms: i32,
+    pub disc_number: u32,
+    pub duration_ms: u64,
     pub explicit: bool,
     pub external_ids: ExternalIds,
     pub external_urls: ExternalUrls,
     pub href: String,
     pub id: String,
+    pub is_local: bool,
     pub is_playable: Option<bool>,
     pub linked_from: Option<LinkedFrom>,
     pub restrictions: Option<Restrictions>,
     pub name: String,
-    pub popularity: i32,
-    pub preview_url: String, // depreciated
-    pub track_number: i32,
+    pub popularity: u32,
+    pub preview_url: Option<String>, // depreciated
+    pub track_number: u32,
     pub r#type: String,
     pub uri: String,
-    pub is_local: bool,
 }
 
 #[derive(Deserialize)]
 pub struct EpisodeObject {
+    somethingthatmostcertaintlyaintthere: String
     // Litteraly dont care
 }
 
 #[derive(Deserialize)]
+#[serde(untagged)]
 pub enum Item {
     TrackObject(TrackObject),
     EpisodeObject(EpisodeObject),
@@ -121,28 +123,28 @@ pub enum Item {
 
 #[derive(Deserialize)]
 pub struct Actions {
-    pub interrupting_playback: bool,
-    pub pausing: bool,
-    pub resuming: bool,
-    pub seeking: bool,
-    pub skipping_next: bool,
-    pub skipping_prev: bool,
-    pub toggling_repeat_context: bool,
-    pub toggling_shuffle: bool,
-    pub toggling_repeat_track: bool,
-    pub transfering_playback: bool,
+    pub interrupting_playback: Option<bool>,
+    pub pausing: Option<bool>,
+    pub resuming: Option<bool>,
+    pub seeking: Option<bool>,
+    pub skipping_next: Option<bool>,
+    pub skipping_prev: Option<bool>,
+    pub toggling_repeat_context: Option<bool>,
+    pub toggling_shuffle: Option<bool>,
+    pub toggling_repeat_track: Option<bool>,
+    pub transfering_playback: Option<bool>,
 }
 
 #[derive(Deserialize)]
 pub struct CurrentlyPlayingResponse {
-    pub device: Device,
-    pub repeat_state: String,
-    pub shuffle_state: String,
+    pub device: Option<Device>,
+    pub repeat_state: Option<String>,
+    pub shuffle_state: Option<String>,
     pub context: Context,
-    pub timestamp: i32,
-    pub progress_ms: i32,
-    pub is_playing: bool,
+    pub timestamp: u64,
+    pub progress_ms: u64,
+    pub is_playing: Option<bool>,
     pub item: Item,
-    pub currently_playing_type: String,
-    pub actions: Actions
+    pub currently_playing_type: Option<String>,
+    pub actions: Option<Actions>
 }

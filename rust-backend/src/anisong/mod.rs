@@ -1,10 +1,10 @@
+use std::clone;
+
 use crate::{Error, Result};
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::default;
 
-use crate::spotify::responses::SimplifiedArtist;
 
 pub struct AnisongClient {
     client: Client,
@@ -47,21 +47,43 @@ impl AnisongClient {
 
     pub async fn get_animes_by_artist_name(&self, artist: String) -> Result<Vec<Anime>> {
         let search = SearchRequest {
+            anime_search_filter: None,
+            song_name_search_filter: None,
             artist_search_filter: Some(SearchFilter {
                 search: artist,
-                ..Default::default()
+                partial_match: false,
+                group_granularity: Some(0),
+                max_other_artist: Some(99),
+                arrangement: Some(true),
             }),
-            ..Default::default()
+            composer_search_filter: None,
+            and_logic: Some(true),
+            ignore_duplicate: Some(false),
+            opening_filter: Some(true),
+            ending_filter: Some(true),
+            insert_filter: Some(true),
+            normal_broadcast: Some(true),
+            dub: Some(true),
+            rebroadcast: Some(true),
+            standard: Some(true),
+            instrumental: Some(true),
+            chanting: Some(true),
+            character: Some(true),
         };
+
         let response = self
             .client
             .post(Self::ANISONG_DB_SEARCH_REQUEST)
             .json(&search)
             .send()
-            .await?;
+            .await
+            .unwrap();
 
         if response.status().is_success() {
-            Ok(response.json().await?)
+            // println!("{}", response.text().await.unwrap());
+            // return Err(Error::NotASong);
+
+            Ok(response.json().await.unwrap())
         } else {
             Err(Error::BadRequest {
                 url: Self::ANISONG_DB_SEARCH_REQUEST.to_string(),
@@ -86,14 +108,19 @@ pub struct SearchRequest {
     song_name_search_filter: Option<SearchFilter>,
     artist_search_filter: Option<SearchFilter>,
     composer_search_filter: Option<SearchFilter>,
+
     and_logic: Option<bool>,
+
     ignore_duplicate: Option<bool>,
+
     opening_filter: Option<bool>,
     ending_filter: Option<bool>,
     insert_filter: Option<bool>,
+
     normal_broadcast: Option<bool>,
     dub: Option<bool>,
     rebroadcast: Option<bool>,
+
     standard: Option<bool>,
     instrumental: Option<bool>,
     chanting: Option<bool>,
@@ -171,43 +198,43 @@ pub struct MalIdsSearchRequest {
 pub struct Artist {
     pub id: i32,
     pub names: Vec<String>,
-    pub line_up_id: i32,
-    pub groups: Vec<Artist>,
-    pub members: Vec<Artist>,
+    pub line_up_id: Option<i32>,
+    pub groups: Option<Vec<Artist>>,
+    pub members: Option<Vec<Artist>>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AnimeListLinks {
-    pub myanimelist: i32,
-    pub anidb: i32,
-    pub anilist: i32,
-    pub kitsu: i32,
+    pub myanimelist: Option<i32>,
+    pub anidb: Option<i32>,
+    pub anilist: Option<i32>,
+    pub kitsu: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Anime {
-    pub ann_id: i32,
-    pub ann_song_id: i32,
-    pub anime_en_name: String,
-    pub anime_jp_name: String,
-    pub anime_alt_name: Vec<String>,
-    pub anime_vintage: String,
+    pub annId: Option<i32>,
+    pub annSongId: Option<i32>,
+    pub animeENName: String,
+    pub animeJPName: String,
+    pub animeAltName: Option<Vec<String>>,
+    pub animeVintage: String,
     pub linked_ids: AnimeListLinks,
-    pub anime_type: String,
-    pub anime_category: String,
-    pub song_type: String,
-    pub song_name: String,
-    pub song_artist: String,
-    pub song_composer: String,
-    pub song_arranger: String,
-    pub song_difficulty: f64,
-    pub song_category: String,
-    pub song_length: f64,
-    pub is_dub: bool,
-    pub is_rebroadcast: bool,
-    pub hq: String,
-    pub mq: String,
-    pub audio: String,
+    pub animeType: String,
+    pub animeCategory: String,
+    pub songType: String,
+    pub songName: String,
+    pub songArtist: String,
+    pub songComposer: String,
+    pub songArranger: String,
+    pub songDifficulty: Option<f64>,
+    pub songCategory: String,
+    pub songLength: Option<f64>,
+    pub isDub: bool,
+    pub isRebroadcast: bool,
+    pub HQ: Option<String>,
+    pub MQ: Option<String>,
+    pub audio: Option<String>,
     pub artists: Vec<Artist>,
     pub composers: Vec<Artist>,
     pub arrangers: Vec<Artist>,
