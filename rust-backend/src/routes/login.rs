@@ -17,8 +17,11 @@ pub async fn login(State(app_state): State<Arc<AppState>>, session: Session) -> 
         .await
         .unwrap();
 
+    println!("state {}", session.get::<String>("state").await.unwrap().unwrap());
+
     let session_id = session.id();
     println!("Session ID: {:?}", session_id);
+    println!("Ran login function");
 
     let auth_params = HashMap::from([
         ("client_id", app_state.client_id.clone()),

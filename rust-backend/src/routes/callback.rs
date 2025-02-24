@@ -1,7 +1,6 @@
 use std::{collections::HashMap, sync::Arc, time::{SystemTime, UNIX_EPOCH}};
 
 use axum::{extract::{Query, State}, http::HeaderValue, response::{IntoResponse, Redirect}};
-use axum_sessions::async_session::log::debug;
 use base64::{engine, Engine};
 use axum::http::HeaderMap;
 use reqwest::Client;
@@ -22,8 +21,11 @@ pub async fn callback(
     session: Session,
 ) -> axum::response::Response {
     let session_id = session.id();
+    println!("Former Session state: {}", {&params.state});
     println!("Session ID: {:?}", session_id);
-    if params.state != session.get::<String>("state").await.unwrap().unwrap() {
+    let session_state = session.get::<String>("state").await.unwrap();
+
+    if session_state.is_none_or(|value| value != params.state){
         return axum::http::StatusCode::BAD_REQUEST.into_response();
     }
 

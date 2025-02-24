@@ -17,7 +17,7 @@ pub async fn update(
     let token_option = session.get::<String>("access_token").await?;
 
     match token_option {
-        Some(token) => {
+        Some(_) => {
             let expire_time_option = session.get::<u64>("expire_time").await.unwrap().unwrap();
             if expire_time_option
                 < SystemTime::now()

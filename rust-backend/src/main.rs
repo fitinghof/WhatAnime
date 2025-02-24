@@ -47,8 +47,9 @@ async fn main() {
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
-        .with_expiry(Expiry::OnInactivity(Duration::seconds(10)))
         .with_always_save(true)
+        .with_expiry(Expiry::OnInactivity(Duration::seconds(10)))
+        .with_secure(false)
         .with_same_site(SameSite::None);
 
     let shared_state = Arc::new(AppState::load());

@@ -18,6 +18,7 @@ pub enum Error {
     ReqwestError(reqwest::Error),
     TowerError(tower_sessions::session::Error),
     ParseError(String),
+    // SessionError(tower_sessions_core::session::Error)
 }
 
 impl From<reqwest::Error> for Error {
