@@ -35,7 +35,7 @@ impl AppState {
         return Self {
             client_id: env::var("ClientID").unwrap(),
             client_secret: env::var("ClientSecret").unwrap(),
-            redirect_uri: format!("http://{ip}/callback"),
+            redirect_uri: format!("http://{ip}:8000/callback"),
             ip,
             anisong_db: Arc::new(AnisongClient::new()),
         };
@@ -60,11 +60,12 @@ async fn main() {
         "http://127.0.0.1:5173".parse::<HeaderValue>().unwrap(),
         "http://127.0.0.1:8000".parse::<HeaderValue>().unwrap(),
         "http://localhost:8000".parse::<HeaderValue>().unwrap(),
+        format!("http://{}:5173", &shared_state.ip).parse::<HeaderValue>().unwrap(),
     ];
 
     let app = Router::new()
         .route("/api/update", get(update))
-        .route("/login", get(login))
+        .route("/api/login", get(login))
         .route("/callback", get(callback))
         .layer(session_layer)
         .layer(
@@ -74,9 +75,9 @@ async fn main() {
                 .allow_methods([Method::GET, Method::POST])
                 .allow_headers([AUTHORIZATION, ACCEPT])
         )
-        .with_state(shared_state); // Enable CORS
+        .with_state(shared_state.clone()); // Enable CORS
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:8000")
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000")
         .await
         .unwrap();
     axum::serve(listener, app).await.unwrap()

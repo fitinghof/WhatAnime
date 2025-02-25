@@ -140,7 +140,7 @@ pub struct CurrentlyPlayingResponse {
     pub device: Option<Device>,
     pub repeat_state: Option<String>,
     pub shuffle_state: Option<String>,
-    pub context: Context,
+    pub context: Option<Context>,
     pub timestamp: u64,
     pub progress_ms: u64,
     pub is_playing: Option<bool>,

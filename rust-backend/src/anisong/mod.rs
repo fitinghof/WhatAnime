@@ -82,7 +82,6 @@ impl AnisongClient {
         if response.status().is_success() {
             // println!("{}", response.text().await.unwrap());
             // return Err(Error::NotASong);
-
             Ok(response.json().await.unwrap())
         } else {
             Err(Error::BadRequest {
@@ -218,9 +217,9 @@ pub struct Anime {
     pub animeENName: String,
     pub animeJPName: String,
     pub animeAltName: Option<Vec<String>>,
-    pub animeVintage: String,
+    pub animeVintage: Option<String>,
     pub linked_ids: AnimeListLinks,
-    pub animeType: String,
+    pub animeType: Option<String>,
     pub animeCategory: String,
     pub songType: String,
     pub songName: String,

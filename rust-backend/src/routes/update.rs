@@ -16,7 +16,7 @@ pub async fn update(
 ) -> Result<impl IntoResponse> {
     session.load().await.unwrap();
 
-    let token_option = session.get::<String>("access_token").await?;
+    let token_option = session.get::<String>("access_token").await.unwrap();
 
     match token_option {
         Some(_) => {
@@ -27,15 +27,15 @@ pub async fn update(
                     .unwrap()
                     .as_secs()
             {
-                refresh_access_token(session.clone(), app_state.clone()).await?;
+                refresh_access_token(session.clone(), app_state.clone()).await.unwrap();
             }
-            let current_song_response = currently_playing(session.clone()).await?;
+            let current_song_response = currently_playing(session.clone()).await.unwrap();
             match current_song_response.item {
                 Item::TrackObject(song) => {
-                    if session.get::<String>("previously_played").await?.is_some_and(|value| value == song.id){
+                    if session.get::<String>("previously_played").await.unwrap().is_some_and(|value| value == song.id){
                         return Ok(Json(ContentUpdate::NoUpdates));
                     }
-                    session.insert("previously_played", &song.id).await?;
+                    session.insert("previously_played", &song.id).await.unwrap();
                     return Ok(Json(ContentUpdate::NewSong(find_most_likely_anime(&song, 40.0, app_state.anisong_db.clone()).await.unwrap())));
                 }
                 _ => {

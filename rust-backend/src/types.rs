@@ -15,16 +15,17 @@ pub enum AnimeType {
     Movie,
     OVA,
     ONA,
-
+    Special,
 }
 
 impl AnimeType{
     pub fn new(type_string: &str) -> Result<Self> {
         match type_string {
             "TV" => Ok(AnimeType::TV),
-            "Moive" => Ok(AnimeType::Movie),
+            "Movie" => Ok(AnimeType::Movie),
             "OVA" => Ok(AnimeType::OVA),
             "ONA" => Ok(AnimeType::ONA),
+            "Special" => Ok(AnimeType::Special),
             _ => Err(Error::ParseError(type_string.to_string())),
         }
     }
@@ -58,13 +59,16 @@ impl AnimeTrackIndex {
             return Err(Error::ParseError(input.to_string()));
         };
 
-        let track_type = parts[0];
+        let anime_index_type = parts[0];
 
-        match track_type {
+        match anime_index_type {
             "Opening" => Ok(AnimeTrackIndex::Opening(track_number)),
             "Insert" => Ok(AnimeTrackIndex::Insert(0)),
             "Ending" => Ok(AnimeTrackIndex::Ending(track_number)),
-            _ => Err(Error::ParseError(input.to_string())),
+            _ => {
+                println!("Found weird anime index type: {} number: {}", anime_index_type, track_number);
+                Err(Error::ParseError(input.to_string()))
+            },
         }
     }
 }
@@ -74,32 +78,43 @@ impl AnimeTrackIndex {
 pub enum AnimeIndex {
     Season(u32),
     Movie(u32),
-    ONA{year: u32}
+    ONA(u32),
+    OVA(u32),
+    TVSpecial(u32),
+    Special(u32),
+    MusicVideo(u32),
+}
+
+fn split_string(input: &str) -> (String, Option<u32>) {
+    let mut words: Vec<&str> = input.split_whitespace().collect();
+    if let Some(last) = words.last() {
+        if let Ok(num) = last.parse::<u32>() {
+            words.pop();
+            let text = words.join(" ");
+            return (text, Some(num));
+        }
+    }
+    (input.to_owned(), None)
 }
 
 impl AnimeIndex {
     pub fn from_str(anime_category: &str) -> Result<Self> {
-        let parts: Vec<&str> = anime_category.split_whitespace().collect();
+        let (anime_index_type, track_number) = split_string(anime_category);
 
-        let track_number = match parts.len() {
-            1 => 1 as u32,
-            2 => {
-                match parts[1].parse::<u32>() {
-                    Ok(value) => value,
-                    Err(_) => return Err(Error::ParseError(anime_category.to_string())),
-                }
-            }
-            _ => return Err(Error::ParseError(anime_category.to_string())),
-        };
-
-        let track_type = parts[0];
-
-        match track_type {
+        let match_str: &str = &anime_index_type;
+        match match_str {
             "TV" => Ok(AnimeIndex::Season(0)),
-            "Season" => Ok(AnimeIndex::Season(track_number)),
-            "Movie" => Ok(AnimeIndex::Movie(track_number)),
-            "ONA" => Ok(AnimeIndex::ONA{year: track_number}),
-            _ => Err(Error::ParseError(anime_category.to_string())),
+            "Season" => Ok(AnimeIndex::Season(track_number.unwrap_or(1))),
+            "Movie" => Ok(AnimeIndex::Movie(track_number.unwrap_or(1))),
+            "ONA" => Ok(AnimeIndex::ONA(track_number.unwrap_or(0))),
+            "OVA" => Ok(AnimeIndex::OVA(track_number.unwrap_or(1))),
+            "TV Special" => Ok(AnimeIndex::TVSpecial(track_number.unwrap_or(1))),
+            "Special" => Ok(AnimeIndex::Special(track_number.unwrap_or(1))),
+            "Music Video" => Ok(AnimeIndex::MusicVideo(track_number.unwrap_or(1))),
+            _ => {
+                println!("Found weird track type: {}", anime_index_type);
+                Err(Error::ParseError(anime_category.to_string()))
+            },
         }
     }
     }
@@ -112,19 +127,24 @@ pub struct Anime {
     pub anime_index: AnimeIndex,
     pub track_index: AnimeTrackIndex,
     pub anime_type: Option<AnimeType>,
-    pub image_url: String,
+    pub image_url: Option<String>,
     pub linked_ids: anisong::AnimeListLinks
 }
 impl Anime {
-    pub fn new(anisong_anime: &anisong::Anime, image_url: &str) -> Result<Self> {
+    pub fn new(anisong_anime: &anisong::Anime, image_url: Option<String>) -> Result<Self> {
+        let anime_type = if anisong_anime.animeType.is_some() {
+            AnimeType::new(&anisong_anime.animeType.as_ref().unwrap()).ok()
+        }
+        else {
+            None
+        };
         Ok(Self {
                     title: anisong_anime.animeENName.clone(),
                     title_japanese: anisong_anime.animeJPName.clone(),
                     anime_index: AnimeIndex::from_str(&anisong_anime.animeCategory).unwrap(),
                     track_index: AnimeTrackIndex::from_str(&anisong_anime.songType).unwrap(),
-
-                    anime_type: AnimeType::new(&anisong_anime.animeType).ok(),
-                    image_url: image_url.to_string(),
+                    anime_type: anime_type,
+                    image_url,
                     linked_ids: anisong_anime.linked_ids.clone(),
                 })
     }

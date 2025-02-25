@@ -1,9 +1,21 @@
 import React from "react";
 
 export interface AnimeIndex {
-  Season: number | null;
-  Movie: number | null;
-  ONA: number | null;
+  Season?: number,
+  Movie?: number,
+  ONA?: number,
+  OVA?: number,
+  TVSpecial?: number,
+}
+
+function parseAnimeIndex(animeIndex: AnimeIndex): string {
+  if (animeIndex.Season !== undefined) return  `Season ${animeIndex.Season ? animeIndex.Season : 1}`;
+  if (animeIndex.Movie !== undefined) return  `Movie ${animeIndex.Movie? animeIndex.Movie : 1}`;
+  if (animeIndex.ONA !== undefined) return `ONA ${animeIndex.ONA ? animeIndex.ONA : 1}`;
+  if (animeIndex.OVA !== undefined) return `OVA ${animeIndex.OVA ? animeIndex.OVA : 1}`;
+  if (animeIndex.TVSpecial !== undefined) return `OVA ${animeIndex.TVSpecial ? animeIndex.TVSpecial : 1}`;
+  console.log(animeIndex);
+  return "wacky season"
 }
 
 export interface AnimeTrackIndex {
@@ -13,10 +25,10 @@ export interface AnimeTrackIndex {
 }
 
 function parseTrackIndex(track: AnimeTrackIndex): string {
-  if (!track) return "";
-  if (track.Opening !== undefined) return `Opening ${track.Opening}`;
+  if (track === undefined) return "";
+  if (track.Opening !== undefined) return `Opening ${track.Opening ?? ""}`;
   if (track.Insert !== undefined) return `Insert Song`;
-  if (track.Ending !== undefined) return `Ending ${track.Ending}`;
+  if (track.Ending !== undefined) return `Ending ${track.Ending ?? ""}`;
   return "";
 }
 
@@ -50,6 +62,7 @@ interface AnimeEntryProps {
 
 const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime }) => {
   let animeSongNumber = parseTrackIndex(anime.track_index);
+  let animeIndex = parseAnimeIndex(anime.anime_index);
   return (
     <div className="anime-item">
       <img src={anime.image_url} alt={`${anime.title} cover`} className="anime-art" />
@@ -57,13 +70,13 @@ const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime }) => {
         <div className="anime-title">
           {anime.title || "Unknown Anime"}
         </div>
-        <div className="anime-season">
-          {`Season ${anime.anime_index ? anime.anime_index.Season : "Unknown"}`}
-        </div>
+        {
+          <div className="anime-season">
+            {`${animeIndex}`}
+          </div>
+        }
         <div className="anime-opening">
-          {anime.track_index?.Opening !== undefined
-            ? animeSongNumber
-            : ""}
+          {animeSongNumber}
         </div>
         <div className="anime-type">
           {`Type: ${anime.anime_type || "Unknown"}`}

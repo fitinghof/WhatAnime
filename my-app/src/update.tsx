@@ -11,7 +11,6 @@ const Update = () => {
     const [animeList2, setAnimeList2] = useState<AnimeInfo[]>([]);
     const [separator1, setSeparator1] = useState<string>("");
     const [separator2, setSeparator2] = useState<string>("");
-    //const [status, setStatus] = useState<string>("");
 
     useEffect(() => {
         console.log("Update component mounted");
@@ -28,8 +27,10 @@ const Update = () => {
                                 album_picture_url: data.NewSong.Miss.song_info.album_picture_url,
                             });
                             const animes = data.NewSong.Miss.possible_anime
+                            setAnimeList2([]);
                             setAnimeList(animes);
                             setSeparator1(animes.length > 0 ? "Possible matches" : "No matches")
+                            setSeparator2("");
 
                         } else if (data.NewSong.Hit) {
                             const hit = data.NewSong.Hit;
@@ -52,8 +53,9 @@ const Update = () => {
                             album_picture_url: "/static/slime.png",
                         });
                         setAnimeList([]);
+                        setAnimeList2([]);
                     } else if (data === "LoginRequired") {
-                        window.location.href = "http://127.0.0.1:8000/login";
+                        window.location.href = "/api/login";
                     } else if (data == "NoUpdates"){
                     }
                     else {

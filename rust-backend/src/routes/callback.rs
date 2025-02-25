@@ -96,7 +96,7 @@ pub async fn callback(
 
         session.save().await.unwrap();
 
-        return Ok(Redirect::to(&format!("http://127.0.0.1:5173/")));
+        return Ok(Redirect::to(&format!("http://{}:5173/", &app_state.ip)));
     }
 
     return Err(axum::http::StatusCode::BAD_REQUEST);

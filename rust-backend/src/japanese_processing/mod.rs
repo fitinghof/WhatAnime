@@ -24,8 +24,9 @@ pub fn process_possible_japanese(japanese: &str) -> String {
 }
 
 fn normalize_text(text: &str) -> String {
-    text.to_lowercase()
-        .replace(|c: char| !c.is_alphanumeric() && c != ' ', "")
+    let new_text = text.to_lowercase()
+        .replace(|c: char| !c.is_alphanumeric() && c != ' ', "");
+    return deunicode::deunicode(&new_text);
 }
 
 fn remove_vowels(word: &str) -> String {
