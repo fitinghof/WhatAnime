@@ -161,7 +161,7 @@ impl AnimeIndex {
         }
     }
     pub fn from_db(discriminator: i16, value: i32) -> Result<Self> {
-        match value {
+        match discriminator {
             0 => Ok(AnimeIndex::Season(value)),
             1 => Ok(AnimeIndex::Movie(value)),
             2 => Ok(AnimeIndex::ONA(value)),

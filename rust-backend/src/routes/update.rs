@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
 
 use crate::{
-    error::{Error, Result}, link::find_most_likely_anime, spotify::{api::{currently_playing, refresh_access_token}, responses::{CurrentlyPlayingResponses, Item}}, types::ContentUpdate, AppState
+    error::{Error, Result}, spotify::{api::{currently_playing, refresh_access_token}, responses::{CurrentlyPlayingResponses, Item}}, types::ContentUpdate, AppState
 };
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,7 +1,6 @@
 mod anisong;
 mod error;
 mod japanese_processing;
-mod link;
 mod routes;
 mod spotify;
 mod types;

@@ -1,4 +1,4 @@
-use std::{clone, collections::HashSet};
+use std::collections::HashSet;
 
 use crate::{japanese_processing::{process_possible_japanese, process_similarity}, spotify::responses::TrackObject, Error, Result};
 
@@ -11,7 +11,6 @@ pub struct AnisongClient {
 }
 
 impl AnisongClient {
-    const ANISONG_DB_URL: &str = "https://anisongdb.com/api";
     const SEARCH_REQUEST_URL: &str = "https://anisongdb.com/api/search_request";
     const ARTIST_ID_SEARCH_REQUEST_URL: &str = "https://anisongdb.com/api/artist_ids_request";
 
@@ -301,6 +300,7 @@ pub struct AnimeListLinks {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[allow(non_snake_case)]
 pub struct Anime {
     pub annId: i32,
     pub annSongId: i32,
