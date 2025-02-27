@@ -101,8 +101,8 @@ impl Database {
                         for anime in &animehit_evaluated {
                             let _ = self.try_add_anime_db(song, anime.0.clone()).await.unwrap();
                         }
-                        for artist in &animehit_evaluated[0].0.artists {
-                            let _ = self.add_artist_db(artist, song).await;
+                        if animehit_evaluated[0].0.artists.len() == 1 && song.artists.len() == 1 {
+                            let _ = self.add_artist_db(&animehit_evaluated[0].0.artists[0], &song.artists[0].id).await;
                         }
                     }
 
@@ -139,8 +139,8 @@ impl Database {
                         for anime in &anime_hit_info {
                             let _ = self.try_add_anime_db(song, anime.0.clone()).await.unwrap();
                         }
-                        for artist in &anime_hit_info[0].0.artists {
-                            let _ = self.add_artist_db(artist, song);
+                        if anime_hit_info[0].0.artists.len() == 1 && song.artists.len() == 1 {
+                            let _ = self.add_artist_db(&anime_hit_info[0].0.artists[0], &song.artists[0].id).await;
                         }
                     }
 

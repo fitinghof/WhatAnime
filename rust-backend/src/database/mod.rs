@@ -252,13 +252,13 @@ impl Database {
                 .collect::<Vec<i32>>(),
         )
         .bind(track_index.discriminant() as i16)
-        .bind(track_index.value()) // f32
-        .fetch_optional(&self.pool)
-        .await?;
+        .bind(track_index.value())
+        .execute(&self.pool)
+        .await.unwrap(); // f32
         Ok(())
     }
 
-    pub async fn add_artist_db(&self, artist: &Artist, spotify_track_object: &TrackObject) {
+    pub async fn add_artist_db(&self, artist: &Artist, artist_spotify_id: &String) {
         let groups_ids = artist
             .groups
             .as_ref()
@@ -268,6 +268,7 @@ impl Database {
             .members
             .as_ref()
             .map(|members| members.iter().map(|b| b.id).collect::<Vec<i32>>());
+        println!("Trying to add artist");
         let _ = sqlx::query::<Postgres>(
             r#"INSERT INTO artists (
                 spotify_id,
@@ -281,11 +282,13 @@ impl Database {
             )
             "#,
         )
-        .bind(spotify_track_object.id.clone())
+        .bind(artist_spotify_id.clone())
         .bind(artist.id)
         .bind(&artist.names)
         .bind(groups_ids.as_deref())
-        .bind(members_ids.as_deref());
+        .bind(members_ids.as_deref())
+        .execute(&self.pool)
+        .await.unwrap();
     }
 
     pub async fn try_add_anime_db(
@@ -388,7 +391,10 @@ impl Database {
                     &spotify_track_object
                         .artists
                         .iter()
-                        .map(|a| a.id.clone())
+                        .map(|a| {
+                            println!("{}", &a.id);
+                            a.id.clone()
+                        })
                         .collect::<Vec<String>>(),
                 )
                 .await

@@ -59,7 +59,7 @@ pub struct DBAnime {
 pub struct DBArtist {
     pub spotify_id: String,
     pub ann_id: i32,
-    pub artist_names: Vec<String>,
-    pub groups_ids: Vec<i32>,
-    pub members: Vec<i32>,
+    pub names: Vec<String>,
+    pub groups_ids: Option<Vec<i32>>,
+    pub members: Option<Vec<i32>>,
 }
