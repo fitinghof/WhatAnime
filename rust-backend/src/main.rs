@@ -5,6 +5,7 @@ mod link;
 mod routes;
 mod spotify;
 mod types;
+mod database;
 
 use anisong::AnisongClient;
 use axum::{Router, http::HeaderValue, routing::get};
@@ -13,11 +14,12 @@ pub use error::{Error, Result};
 use axum::http::Method;
 use axum::http::header::{AUTHORIZATION, ACCEPT};
 use std::{env, sync::Arc};
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 use tower_sessions::{
-    Expiry, MemoryStore, SessionManagerLayer,
-    cookie::{SameSite, time::Duration},
+    MemoryStore, SessionManagerLayer,
+    cookie::SameSite,
 };
+use database::Database;
 
 use routes::{callback, login, update};
 
@@ -26,18 +28,22 @@ struct AppState {
     client_secret: String,
     ip: String,
     redirect_uri: String,
-    anisong_db: Arc<AnisongClient>,
+    anisong_db: AnisongClient,
+    database: Database,
 }
 
 impl AppState {
-    fn load() -> Self {
+    async fn load() -> Self {
         let ip = env::var("ip").unwrap();
+        let database = Database::new().await;
+        database.run_migrations().await.unwrap();
         return Self {
             client_id: env::var("ClientID").unwrap(),
             client_secret: env::var("ClientSecret").unwrap(),
             redirect_uri: format!("http://{ip}:8000/callback"),
             ip,
-            anisong_db: Arc::new(AnisongClient::new()),
+            anisong_db: AnisongClient::new(),
+            database,
         };
     }
 }
@@ -53,7 +59,7 @@ async fn main() {
         .with_always_save(true);
         //.with_expiry(Expiry::OnInactivity(Duration::seconds(10)));
 
-    let shared_state = Arc::new(AppState::load());
+    let shared_state = Arc::new(AppState::load().await);
 
     let allowed_origins = [
         "http://localhost:5173".parse::<HeaderValue>().unwrap(),

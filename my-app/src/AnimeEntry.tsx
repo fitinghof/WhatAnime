@@ -9,8 +9,8 @@ export interface AnimeIndex {
 }
 
 function parseAnimeIndex(animeIndex: AnimeIndex): string {
-  if (animeIndex.Season !== undefined) return  `Season ${animeIndex.Season ? animeIndex.Season : 1}`;
-  if (animeIndex.Movie !== undefined) return  `Movie ${animeIndex.Movie? animeIndex.Movie : 1}`;
+  if (animeIndex.Season !== undefined) return `Season ${animeIndex.Season ? animeIndex.Season : 1}`;
+  if (animeIndex.Movie !== undefined) return `Movie ${animeIndex.Movie ? animeIndex.Movie : 1}`;
   if (animeIndex.ONA !== undefined) return `ONA ${animeIndex.ONA ? animeIndex.ONA : 1}`;
   if (animeIndex.OVA !== undefined) return `OVA ${animeIndex.OVA ? animeIndex.OVA : 1}`;
   if (animeIndex.TVSpecial !== undefined) return `OVA ${animeIndex.TVSpecial ? animeIndex.TVSpecial : 1}`;
@@ -52,7 +52,7 @@ export interface AnimeInfo {
   anime_index: AnimeIndex;
   track_index: AnimeTrackIndex;
   anime_type: AnimeType;
-  image_url: string;
+  image_url?: string;
   linked_ids: LinkedIds;
 }
 
@@ -65,7 +65,11 @@ const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime }) => {
   let animeIndex = parseAnimeIndex(anime.anime_index);
   return (
     <div className="anime-item">
-      <img src={anime.image_url} alt={`${anime.title} cover`} className="anime-art" />
+      <img
+        src={anime.image_url ?? "/Amq_icon_green.png"}
+        alt="Anime art"
+        className="anime-art"
+      />
       <div className="anime-info">
         <div className="anime-title">
           {anime.title || "Unknown Anime"}

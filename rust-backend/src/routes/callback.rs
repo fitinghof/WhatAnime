@@ -15,7 +15,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
 
-use crate::{AppState, spotify::responses::SpotifyTokenResponse};
+use crate::{AppState, spotify::responses::SpotifyToken};
 
 //#[derive(Deserialize)]
 // enum CodeOrState {
@@ -72,7 +72,7 @@ pub async fn callback(
         .unwrap();
 
     if token_response.status().is_success() {
-        let token_info: SpotifyTokenResponse = token_response.json().await.unwrap();
+        let token_info: SpotifyToken = token_response.json().await.unwrap();
 
         session
             .insert("access_token", token_info.access_token)

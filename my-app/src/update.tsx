@@ -14,8 +14,9 @@ const Update = () => {
 
     useEffect(() => {
         console.log("Update component mounted");
-        const fetchUpdate = () => {
-            fetch("/api/update", { credentials: "include" })
+        const fetchUpdate = (refresh: boolean = false) => {
+            const fetch_address = `/api/update${refresh ? "?refresh=true": ""}`
+            fetch(fetch_address, { credentials: "include" })
                 .then((response) => response.json())
                 .then((data) => {
                     console.log(data)
@@ -46,27 +47,25 @@ const Update = () => {
                             setSeparator2("More by this artist");
                             setAnimeList2(hit.more_with_artist);
                         }
-                    } else if (data.status === "not_playing") {
+                    } else if (data === "NotPlaying") {
                         setSongInfo({
                             title: "Not playing anything",
                             artists: [],
-                            album_picture_url: "/static/slime.png",
+                            album_picture_url: "/Amq_icon_green.png",
                         });
                         setAnimeList([]);
                         setAnimeList2([]);
+                        setSeparator2("");
+                        setSeparator1("");
                     } else if (data === "LoginRequired") {
                         window.location.href = "/api/login";
                     } else if (data == "NoUpdates"){
-                    }
-                    else {
-                        setAnimeList([]);
-                        setAnimeList2([]);
                     }
                 })
             .catch((err) => console.error(err));
         };
         // Run immediately, then every 5 seconds (5000ms)
-        fetchUpdate();
+        fetchUpdate(true);
         const intervalId = setInterval(fetchUpdate, 5000);
 
         return () => clearInterval(intervalId);

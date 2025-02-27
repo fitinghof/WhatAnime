@@ -1,13 +1,38 @@
+use std::fmt::format;
+
+use crate::{anisong::{self, Anime, AnimeListLinks}, database::{databasetypes::DBAnime, findAnimeNoDb::fetch_jikan }, spotify::responses::TrackObject, Error, Result};
 use axum::response::IntoResponse;
-use serde::{Serialize, Deserialize};
+use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use serde_json::to_string;
-use crate::{anisong, Error, Result};
 
 #[derive(Serialize)]
 pub struct SongInfo {
     pub title: String,
     pub artists: Vec<String>,
     pub album_picture_url: String,
+}
+
+impl SongInfo {
+    pub fn from_track_obj(track_object: &TrackObject) -> Self {
+        Self {
+            title: track_object.name.clone(),
+            artists: track_object.artists.iter().map(|a| a.name.clone()).intersperse(", ".to_string()).collect(),
+            album_picture_url: track_object.album.images[0].url.clone(),
+        }
+    }
+}
+
+fn split_string(input: &str) -> (String, Option<i32>) {
+    let mut words: Vec<&str> = input.split_whitespace().collect();
+    if let Some(last) = words.last() {
+        if let Ok(num) = last.parse::<i32>() {
+            words.pop();
+            let text = words.join(" ");
+            return (text, Some(num));
+        }
+    }
+    (input.to_owned(), None)
 }
 #[derive(Serialize)]
 pub enum AnimeType {
@@ -18,83 +43,101 @@ pub enum AnimeType {
     Special,
 }
 
-impl AnimeType{
-    pub fn new(type_string: &str) -> Result<Self> {
+impl AnimeType {
+    pub fn from_str(type_string: &str) -> Result<Self> {
         match type_string {
-            "TV" => Ok(AnimeType::TV),
-            "Movie" => Ok(AnimeType::Movie),
-            "OVA" => Ok(AnimeType::OVA),
-            "ONA" => Ok(AnimeType::ONA),
-            "Special" => Ok(AnimeType::Special),
+            "TV" => Ok(Self::TV),
+            "Movie" => Ok(Self::Movie),
+            "OVA" => Ok(Self::OVA),
+            "ONA" => Ok(Self::ONA),
+            "Special" => Ok(Self::Special),
             _ => Err(Error::ParseError(type_string.to_string())),
+        }
+    }
+    pub fn from_db(discriminator: i16) -> Result<Self> {
+        match discriminator {
+            0 => Ok(Self::TV),
+            1 => Ok(Self::Movie),
+            2 => Ok(Self::OVA),
+            3 => Ok(Self::ONA),
+            4 => Ok(Self::Special),
+            _ => Err(Error::ParseError(discriminator.to_string()))
         }
     }
 }
 #[derive(Serialize)]
+#[repr(u8)]
 pub enum AnimeTrackIndex {
-    Opening(u32),
-    Insert(u32),
-    Ending(u32),
+    Opening(i32),
+    Insert(i32),
+    Ending(i32),
 }
 
 impl AnimeTrackIndex {
     pub fn from_str(input: &str) -> Result<Self> {
-        let parts: Vec<&str> = input.split_whitespace().collect();
+        let (anime_index_type, track_number) = split_string(input);
 
-
-        let track_number = if parts.len() == 1 {
-            1 as u32
-        } else if parts.len() == 2 {
-            if parts[0] != "Insert" {
-                match parts[1].parse::<u32>() {
-                    Ok(value) => value,
-                    Err(_) => return Err(Error::ParseError(input.to_string())),
-                }
-            }
-            else {
-                0
+        let match_str: &str = &anime_index_type;
+        match match_str {
+            "Opening" => Ok(AnimeTrackIndex::Opening(track_number.unwrap_or(1))),
+            "Insert Song" => Ok(AnimeTrackIndex::Insert(track_number.unwrap_or(0))),
+            "Ending" => Ok(AnimeTrackIndex::Ending(track_number.unwrap_or(1))),
+            _ => {
+                println!("Found weird Anime track index type: {}", &input);
+                Err(Error::ParseError(input.to_string()))
             }
         }
-        else {
-            return Err(Error::ParseError(input.to_string()));
-        };
-
-        let anime_index_type = parts[0];
-
-        match anime_index_type {
-            "Opening" => Ok(AnimeTrackIndex::Opening(track_number)),
-            "Insert" => Ok(AnimeTrackIndex::Insert(0)),
-            "Ending" => Ok(AnimeTrackIndex::Ending(track_number)),
-            _ => {
-                println!("Found weird anime index type: {} number: {}", anime_index_type, track_number);
-                Err(Error::ParseError(input.to_string()))
-            },
+    }
+    pub fn discriminant(&self) -> u8 {
+        unsafe { *(self as *const Self as *const u8) }
+    }
+    pub fn value(&self) -> i32 {
+        match self {
+            AnimeTrackIndex::Opening(val)
+            | AnimeTrackIndex::Insert(val)
+            | AnimeTrackIndex::Ending(val) => *val,
+        }
+    }
+    pub fn from_db(discriminator: i16, value:i32) -> Result<Self> {
+        match discriminator {
+            0 => Ok(AnimeTrackIndex::Opening(value)),
+            1 => Ok(AnimeTrackIndex::Insert(value)),
+            2 => Ok(AnimeTrackIndex::Ending(value)),
+            _ => Err(Error::ParseError(format!("{}:{}", discriminator, value)))
         }
     }
 }
 
 
 #[derive(Serialize)]
+#[repr(u8)]
 pub enum AnimeIndex {
-    Season(u32),
-    Movie(u32),
-    ONA(u32),
-    OVA(u32),
-    TVSpecial(u32),
-    Special(u32),
-    MusicVideo(u32),
+    Season(i32),
+    Movie(i32),
+    ONA(i32),
+    OVA(i32),
+    TVSpecial(i32),
+    Special(i32),
+    MusicVideo(i32),
 }
 
-fn split_string(input: &str) -> (String, Option<u32>) {
-    let mut words: Vec<&str> = input.split_whitespace().collect();
-    if let Some(last) = words.last() {
-        if let Ok(num) = last.parse::<u32>() {
-            words.pop();
-            let text = words.join(" ");
-            return (text, Some(num));
+impl AnimeIndex {
+    // funny little tihi
+    pub fn discriminant(&self) -> u8 {
+        unsafe { *(self as *const Self as *const u8) }
+    }
+
+    pub fn value(&self) -> i32 {
+        match self {
+            AnimeIndex::Season(val)
+            | AnimeIndex::Movie(val)
+            | AnimeIndex::ONA(val)
+            | AnimeIndex::OVA(val)
+            | AnimeIndex::TVSpecial(val)
+            | AnimeIndex::Special(val)
+            | AnimeIndex::MusicVideo(val) => *val,
         }
     }
-    (input.to_owned(), None)
 }
 
 impl AnimeIndex {
@@ -114,53 +157,91 @@ impl AnimeIndex {
             _ => {
                 println!("Found weird track type: {}", anime_index_type);
                 Err(Error::ParseError(anime_category.to_string()))
-            },
+            }
         }
     }
+    pub fn from_db(discriminator: i16, value: i32) -> Result<Self> {
+        match value {
+            0 => Ok(AnimeIndex::Season(value)),
+            1 => Ok(AnimeIndex::Movie(value)),
+            2 => Ok(AnimeIndex::ONA(value)),
+            3 => Ok(AnimeIndex::OVA(value)),
+            4 => Ok(AnimeIndex::TVSpecial(value)),
+            5 => Ok(AnimeIndex::Special(value)),
+            6 => Ok(AnimeIndex::MusicVideo(value)),
+            _ => Err(Error::ParseError(format!("{}:{}", discriminator, value)))
+        }
     }
-
+}
 
 #[derive(Serialize)]
-pub struct Anime {
+pub struct FrontendAnimeEntry {
     pub title: String,
     pub title_japanese: String,
     pub anime_index: AnimeIndex,
     pub track_index: AnimeTrackIndex,
     pub anime_type: Option<AnimeType>,
     pub image_url: Option<String>,
-    pub linked_ids: anisong::AnimeListLinks
+    pub linked_ids: anisong::AnimeListLinks,
 }
-impl Anime {
+impl FrontendAnimeEntry {
     pub fn new(anisong_anime: &anisong::Anime, image_url: Option<String>) -> Result<Self> {
         let anime_type = if anisong_anime.animeType.is_some() {
-            AnimeType::new(&anisong_anime.animeType.as_ref().unwrap()).ok()
-        }
-        else {
+            AnimeType::from_str(&anisong_anime.animeType.as_ref().unwrap()).ok()
+        } else {
             None
         };
         Ok(Self {
-                    title: anisong_anime.animeENName.clone(),
-                    title_japanese: anisong_anime.animeJPName.clone(),
-                    anime_index: AnimeIndex::from_str(&anisong_anime.animeCategory).unwrap(),
-                    track_index: AnimeTrackIndex::from_str(&anisong_anime.songType).unwrap(),
-                    anime_type: anime_type,
-                    image_url,
-                    linked_ids: anisong_anime.linked_ids.clone(),
-                })
+            title: anisong_anime.animeENName.clone(),
+            title_japanese: anisong_anime.animeJPName.clone(),
+            anime_index: AnimeIndex::from_str(&anisong_anime.animeCategory).unwrap(),
+            track_index: AnimeTrackIndex::from_str(&anisong_anime.songType).unwrap(),
+            anime_type: anime_type,
+            image_url,
+            linked_ids: anisong_anime.linked_ids.clone(),
+        })
     }
+    pub fn from_db(db_anime: &DBAnime) -> Self {
+        Self {
+            title: db_anime.title_eng.clone(),
+            title_japanese: db_anime.title_jpn.clone(),
+            anime_index: AnimeIndex::from_db(db_anime.index_type, db_anime.index_number).unwrap(),
+            track_index: AnimeTrackIndex::from_db(db_anime.track_index_type, db_anime.track_index_number).unwrap(),
+            anime_type: AnimeType::from_db(db_anime.anime_type).ok(),
+            image_url: Some(db_anime.image_url_webp_normal.clone()),
+            linked_ids: AnimeListLinks {
+                myanimelist: db_anime.mal_id,
+                anidb: db_anime.anidb_id,
+                anilist: db_anime.anilist_id,
+                kitsu: db_anime.kitsu_id,
+            }
+        }
+    }
+
+    pub async fn from_anisong(anisong: &Anime) -> Result<Self>{
+        let mut image_url = None;
+        if anisong.linked_ids.myanimelist.is_some() {
+            image_url = fetch_jikan(anisong.linked_ids.myanimelist.unwrap())
+                .await
+                .map(|info| info.images.webp.image_url)
+                .ok();
+        }
+        Ok(Self::new(&anisong, image_url).unwrap())
+    }
+
 }
 
 #[derive(Serialize)]
 pub struct SongHit {
     pub song_info: SongInfo,
     pub certainty: i32,
-    pub anime_info: Vec<Anime>,
-    pub more_with_artist: Vec<Anime>,
+    pub anime_info: Vec<FrontendAnimeEntry>,
+    pub more_with_artist: Vec<FrontendAnimeEntry>,
 }
 #[derive(Serialize)]
 pub struct SongMiss {
     pub song_info: SongInfo,
-    pub possible_anime: Vec<Anime>,
+    pub possible_anime: Vec<FrontendAnimeEntry>,
 }
 #[derive(Serialize)]
 pub enum NewSong {
@@ -172,6 +253,7 @@ pub enum ContentUpdate {
     NewSong(NewSong),
     LoginRequired,
     NoUpdates,
+    NotPlaying,
 }
 
 impl IntoResponse for ContentUpdate {
@@ -196,12 +278,12 @@ pub struct JikanFailResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct JikanSuccessResponse {
-    pub data: JikanAnime
+    pub data: JikanAnime,
 }
 // Jikan API response types
 #[derive(Debug, Serialize, Deserialize)]
 pub struct JikanAnime {
-    pub mal_id: u32,
+    pub mal_id: i32,
     pub url: String,
     pub images: Images,
     pub trailer: Trailer,
@@ -214,22 +296,22 @@ pub struct JikanAnime {
     #[serde(rename = "type")]
     pub anime_type: String,
     pub source: String,
-    pub episodes: Option<u32>,
+    pub episodes: Option<i32>,
     pub status: String,
     pub airing: bool,
     pub aired: Aired,
     pub duration: String,
     pub rating: String,
     pub score: Option<f32>,
-    pub scored_by: Option<u32>,
-    pub rank: Option<u32>,
-    pub popularity: u32,
-    pub members: u32,
-    pub favorites: u32,
+    pub scored_by: Option<i32>,
+    pub rank: Option<i32>,
+    pub popularity: i32,
+    pub members: i32,
+    pub favorites: i32,
     pub synopsis: Option<String>,
     pub background: Option<String>,
     pub season: Option<String>,
-    pub year: Option<u32>,
+    pub year: Option<i32>,
     pub broadcast: Broadcast,
     pub producers: Vec<Producer>,
     pub licensors: Vec<Producer>,
@@ -293,9 +375,9 @@ pub struct AiredProp {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DateInfo {
-    pub day: Option<u32>,
-    pub month: Option<u32>,
-    pub year: Option<u32>,
+    pub day: Option<i32>,
+    pub month: Option<i32>,
+    pub year: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -308,7 +390,7 @@ pub struct Broadcast {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Producer {
-    pub mal_id: u32,
+    pub mal_id: i32,
     #[serde(rename = "type")]
     pub producer_type: String,
     pub name: String,
@@ -317,7 +399,7 @@ pub struct Producer {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Genre {
-    pub mal_id: u32,
+    pub mal_id: i32,
     #[serde(rename = "type")]
     pub genre_type: String,
     pub name: String,

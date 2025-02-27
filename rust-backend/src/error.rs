@@ -4,6 +4,7 @@ use std::fmt::Display;
 
 use axum::response::IntoResponse;
 use axum::http::StatusCode;
+use sqlx::migrate::MigrateError;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -14,13 +15,27 @@ impl IntoResponse for Error {
 }
 #[derive(Debug)]
 pub enum Error {
-    Unauthorized,
-    BadRequest{url: String, status_code: axum::http::StatusCode},
+    BadOAuth,
     NotASong,
+    BadRequest{url: String, status_code: axum::http::StatusCode},
     ReqwestError(reqwest::Error),
     TowerError(tower_sessions::session::Error),
     ParseError(String),
+    SqlxError(sqlx::Error),
+    MigrateError(MigrateError),
     // SessionError(tower_sessions_core::session::Error)
+}
+
+impl From<MigrateError> for Error {
+    fn from(value: MigrateError) -> Self {
+        Self::MigrateError(value)
+    }
+}
+
+impl From<sqlx::Error> for Error {
+    fn from(value: sqlx::Error) -> Self {
+        Self::SqlxError(value)
+    }
 }
 
 impl From<reqwest::Error> for Error {

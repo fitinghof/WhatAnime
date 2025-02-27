@@ -1,12 +1,25 @@
 use serde::Deserialize;
 
 #[derive(serde::Deserialize)]
-pub struct SpotifyTokenResponse {
+pub struct SpotifyToken {
     pub access_token: String,
     pub token_type: String,
     pub scope: String,
     pub expires_in: u64,
-    pub refresh_token: String,
+    pub refresh_token: Option<String>,
+}
+
+// {"error":"unsupported_grant_type","error_description":"grant_type parameter is missing"}
+#[derive(serde::Deserialize)]
+pub struct SpotifyTokenError {
+    pub error: String,
+    pub error_description: String,
+}
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+pub enum SpotifyTokenResponse {
+    Token(SpotifyToken),
+    Error(SpotifyTokenError),
 }
 
 #[derive(Deserialize)]
@@ -147,4 +160,11 @@ pub struct CurrentlyPlayingResponse {
     pub item: Item,
     pub currently_playing_type: Option<String>,
     pub actions: Option<Actions>
+}
+
+pub enum CurrentlyPlayingResponses {
+    Playing(CurrentlyPlayingResponse),
+    NotPlaying,
+    BadToken,
+    Ratelimited,
 }
