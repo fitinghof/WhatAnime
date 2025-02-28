@@ -163,6 +163,12 @@ a {
     margin-top: 5px;
 }
 
+.anime-song-title {
+    font-size: 14px;
+    margin-top: 5px;
+    color: #b3b3b3;
+}
+
 .anime-type {
     margin-top: 5px;
 }
@@ -193,4 +199,27 @@ a {
 
 .anime-links a:hover {
     text-decoration: underline;
+}
+
+
+.anime-button {
+    align-items: flex-end;
+    font-size: 16px;
+    margin-left: auto;
+    aspect-ratio: 1 / 1;
+    padding: 8px 8px;
+    right: 0;
+    background: #2d2e30;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.233);
+    color: #d47508;
+    border: none;
+    border-radius: 30%;
+    cursor: pointer;
+    order: 2;
+    min-width: 90px;  /* Adjust as needed */
+    /*min-height: 50px;  Adjust as needed */
+}
+
+.anime-button:hover {
+    background: #195e0b;
 }

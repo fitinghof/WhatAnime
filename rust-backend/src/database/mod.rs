@@ -1,20 +1,19 @@
 pub mod databasetypes;
-pub mod findAnimeNoDb;
+pub mod find_anime_no_db;
 
-use crate::anisong::{self, Anime, AnisongClient, Artist};
-use crate::japanese_processing::{process_possible_japanese, process_similarity};
+use crate::anisong::{Anime, AnisongClient, Artist};
+use crate::japanese_processing::process_similarity;
 use crate::spotify::responses::TrackObject;
 use crate::types::{
-    AnimeIndex, AnimeTrackIndex, AnimeType, ContentUpdate, FrontendAnimeEntry, JikanAnime,
-    JikanResponses, NewSong, SongHit, SongInfo, SongMiss,
+    AnimeIndex, AnimeTrackIndex, AnimeType, FrontendAnimeEntry, JikanAnime,
+    NewSong, SongHit, SongInfo, SongMiss,
 };
 use crate::{Error, Result};
 use databasetypes::{DBAnime, DBArtist};
-use findAnimeNoDb::fetch_jikan;
+use find_anime_no_db::fetch_jikan;
 use itertools::Itertools;
-use reqwest::Client;
 use sqlx::postgres::PgPoolOptions;
-use sqlx::{Executor, Pool, Postgres};
+use sqlx::{Pool, Postgres};
 use std::collections::HashSet;
 use std::env;
 
@@ -23,6 +22,7 @@ pub struct Database {
 }
 
 impl Database {
+    const ACCURACY_AUTOADD_LIMIT: f32 = 80.0;
     // A bound function to initialize the Database. You can call this once on startup.
     pub async fn new() -> Self {
         // Ensure the DATABASE_URL environment variable is set.
@@ -112,11 +112,13 @@ impl Database {
         .await?)
     }
 
-    pub async fn add_anime_db(
+    pub async fn add_anime(
         &self,
         spotify_track_object: &TrackObject,
         anisong_anime: Anime,
         info: JikanAnime,
+        from_user_name: Option<String>,
+        from_user_mail: Option<String>
     ) -> Result<()> {
         let anime_index = AnimeIndex::from_str(&anisong_anime.animeCategory).unwrap();
         let anime_type = AnimeType::from_str(&anisong_anime.animeType.unwrap()).unwrap();
@@ -165,13 +167,15 @@ impl Database {
                 composers_ann_id,
                 arrangers_ann_id,
                 track_index_type,
-                track_index_number
+                track_index_number,
+                from_user_name,
+                from_user_mail
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                 $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
                 $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33,
-                $34, $35, $36, $37, $38, $39, $40, $41, $42
+                $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44
             )
             ON CONFLICT DO NOTHING
             "#,
@@ -253,6 +257,8 @@ impl Database {
         )
         .bind(track_index.discriminant() as i16)
         .bind(track_index.value())
+        .bind(from_user_name)
+        .bind(from_user_mail)
         .execute(&self.pool)
         .await
         .unwrap(); // f32
@@ -297,11 +303,31 @@ impl Database {
         spotify_track_object: &TrackObject,
         anisong_anime: Anime,
     ) -> Result<()> {
-        println!("Trying to add anime {}", anisong_anime.animeENName);
+        return self.try_add_anime(spotify_track_object, anisong_anime, Some("Database".to_string()), None).await;
+    }
+
+    pub async fn try_add_anime_user(
+        &self,
+        spotify_track_object: &TrackObject,
+        anisong_anime: Anime,
+        from_user_name: Option<String>,
+        from_user_mail: Option<String>
+    ) -> Result<()> {
+        println!("User {:?}, mail: {:?}, added bind for {}  ---  {}", &from_user_name, &from_user_mail, &anisong_anime.animeENName, &spotify_track_object.name);
+        return self.try_add_anime(spotify_track_object, anisong_anime, from_user_name, from_user_mail).await;
+    }
+
+    pub async fn try_add_anime(
+        &self,
+        spotify_track_object: &TrackObject,
+        anisong_anime: Anime,
+        from_user_name: Option<String>,
+        from_user_mail: Option<String>
+    ) -> Result<()> {
         match anisong_anime.linked_ids.myanimelist {
             Some(id) => match fetch_jikan(id).await {
                 Ok(info) => {
-                    self.add_anime_db(spotify_track_object, anisong_anime, info)
+                    self.add_anime(spotify_track_object, anisong_anime, info, from_user_name, from_user_mail)
                         .await
                         .unwrap();
                     Ok(())
@@ -432,7 +458,7 @@ impl Database {
                                 .into_iter()
                                 .partition(|anime| anime.1 == best_score);
 
-                        if best_score > 80.0 {
+                        if best_score > Self::ACCURACY_AUTOADD_LIMIT {
                             for anime in &animehit {
                                 let _ =
                                     self.try_add_anime_db(spotify_track_object, anime.0.clone()).await;

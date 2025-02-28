@@ -7,6 +7,7 @@ mod types;
 mod database;
 
 use anisong::AnisongClient;
+use axum::routing::post;
 use axum::{Router, http::HeaderValue, routing::get};
 use dotenv::dotenv;
 pub use error::{Error, Result};
@@ -20,7 +21,7 @@ use tower_sessions::{
 };
 use database::Database;
 
-use routes::{callback, login, update};
+use routes::{callback, login, update, confirm_anime};
 
 struct AppState {
     client_id: String,
@@ -72,6 +73,7 @@ async fn main() {
         .route("/api/update", get(update))
         .route("/api/login", get(login))
         .route("/callback", get(callback))
+        .route("/api/confirm_anime", post(confirm_anime))
         .layer(session_layer)
         .layer(
             CorsLayer::new()

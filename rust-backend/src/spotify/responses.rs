@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(serde::Deserialize)]
 pub struct SpotifyToken {
@@ -167,4 +167,11 @@ pub enum CurrentlyPlayingResponses {
     NotPlaying,
     BadToken,
     Ratelimited,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct SpotifyUser {
+    pub display_name: Option<String>,
+    pub email: Option<String>,
+
 }

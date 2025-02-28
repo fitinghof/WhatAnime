@@ -1,6 +1,6 @@
 use std::fmt::format;
 
-use crate::{anisong::{self, Anime, AnimeListLinks}, database::{databasetypes::DBAnime, findAnimeNoDb::fetch_jikan }, spotify::responses::TrackObject, Error, Result};
+use crate::{anisong::{self, Anime, AnimeListLinks}, database::{databasetypes::DBAnime, find_anime_no_db::fetch_jikan }, spotify::responses::TrackObject, Error, Result};
 use axum::response::IntoResponse;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -11,6 +11,7 @@ pub struct SongInfo {
     pub title: String,
     pub artists: Vec<String>,
     pub album_picture_url: String,
+    pub spotify_id: String,
 }
 
 impl SongInfo {
@@ -19,6 +20,7 @@ impl SongInfo {
             title: track_object.name.clone(),
             artists: track_object.artists.iter().map(|a| a.name.clone()).intersperse(", ".to_string()).collect(),
             album_picture_url: track_object.album.images[0].url.clone(),
+            spotify_id: track_object.id.clone(),
         }
     }
 }
@@ -183,6 +185,9 @@ pub struct FrontendAnimeEntry {
     pub anime_type: Option<AnimeType>,
     pub image_url: Option<String>,
     pub linked_ids: anisong::AnimeListLinks,
+
+    pub song_name: String,
+    pub artist_ids: Vec<i32>,
 }
 impl FrontendAnimeEntry {
     pub fn new(anisong_anime: &anisong::Anime, image_url: Option<String>) -> Result<Self> {
@@ -199,6 +204,9 @@ impl FrontendAnimeEntry {
             anime_type: anime_type,
             image_url,
             linked_ids: anisong_anime.linked_ids.clone(),
+
+            song_name: anisong_anime.songName.clone(),
+            artist_ids: anisong_anime.artists.iter().map(|a| a.id.clone()).collect(),
         })
     }
     pub fn from_db(db_anime: &DBAnime) -> Self {
@@ -214,7 +222,9 @@ impl FrontendAnimeEntry {
                 anidb: db_anime.anidb_id,
                 anilist: db_anime.anilist_id,
                 kitsu: db_anime.kitsu_id,
-            }
+            },
+            song_name: db_anime.song_name.clone(),
+            artist_ids: db_anime.artists_ann_id.clone(),
         }
     }
 

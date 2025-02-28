@@ -61,9 +61,11 @@ pub fn process_similarity(japanese_text: &str, romaji_text: &str) -> f32 {
         let consonant_weight = 0.9;
         let full_weight = 1.0 - consonant_weight;
 
-        (fuzz_value_consonants as f32 * consonant_weight + fuzz_value_full as f32 * full_weight) as  f32
+        let value = (fuzz_value_consonants as f32 * consonant_weight + fuzz_value_full as f32 * full_weight) as  f32;
+        value
     } else {
-        fuzz::ratio(&normalize_text(japanese_text), &normalize_text(romaji_text)) as f32
+        let value = fuzz::ratio(&normalize_text(japanese_text), &normalize_text(romaji_text)) as f32;
+        value
     }
 }
 

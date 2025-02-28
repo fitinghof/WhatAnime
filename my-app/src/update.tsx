@@ -11,59 +11,67 @@ const Update = () => {
     const [animeList2, setAnimeList2] = useState<AnimeInfo[]>([]);
     const [separator1, setSeparator1] = useState<string>("");
     const [separator2, setSeparator2] = useState<string>("");
+    const [showConfirmButton, setShowConfirmButton] = useState<boolean>(false);
+    const [spotify_id, setSpotifyId] = useState<string>("");
+
+    const fetchUpdate = (refresh: boolean = false) => {
+        const fetch_address = `/api/update${refresh ? "?refresh=true": ""}`
+        fetch(fetch_address, { credentials: "include" })
+            .then((response) => response.json())
+            .then((data) => {
+                console.log(data)
+                if (data.NewSong) {
+                    if (data.NewSong.Miss) {
+                        setShowConfirmButton(true);
+                        setSongInfo({
+                            title: data.NewSong.Miss.song_info.title,
+                            artists: data.NewSong.Miss.song_info.artists,
+                            album_picture_url: data.NewSong.Miss.song_info.album_picture_url,
+                        });
+                        const animes = data.NewSong.Miss.possible_anime
+                        setAnimeList2([]);
+                        setAnimeList(animes);
+                        setSeparator1(animes.length > 0 ? "Possible matches" : "No matches")
+                        setSeparator2("");
+
+                        setSpotifyId(data.NewSong.Miss.song_info.spotify_id);
+
+                    } else if (data.NewSong.Hit) {
+                        const hit = data.NewSong.Hit;
+                        setShowConfirmButton(hit.certainty < 90);
+                        console.log(hit.anime_info);
+                        setSongInfo({
+                            title: hit.song_info.title,
+                            artists: hit.song_info.artists,
+                            album_picture_url: hit.song_info.album_picture_url,
+                        });
+                        setSeparator1(`${hit.certainty}% Match`);
+                        setAnimeList(hit.anime_info);
+
+                        setSeparator2("More by this artist");
+                        setAnimeList2(hit.more_with_artist);
+                        setSpotifyId(hit.song_info.spotify_id);
+                    }
+                } else if (data === "NotPlaying") {
+                    setSongInfo({
+                        title: "Not playing anything",
+                        artists: [],
+                        album_picture_url: "/Amq_icon_green.png",
+                    });
+                    setAnimeList([]);
+                    setAnimeList2([]);
+                    setSeparator2("");
+                    setSeparator1("");
+                } else if (data === "LoginRequired") {
+                    window.location.href = "/api/login";
+                } else if (data == "NoUpdates"){
+                }
+            })
+        .catch((err) => console.error(err));
+    };
 
     useEffect(() => {
         console.log("Update component mounted");
-        const fetchUpdate = (refresh: boolean = false) => {
-            const fetch_address = `/api/update${refresh ? "?refresh=true": ""}`
-            fetch(fetch_address, { credentials: "include" })
-                .then((response) => response.json())
-                .then((data) => {
-                    console.log(data)
-                    if (data.NewSong) {
-                        if (data.NewSong.Miss) {
-                            setSongInfo({
-                                title: data.NewSong.Miss.song_info.title,
-                                artists: data.NewSong.Miss.song_info.artists,
-                                album_picture_url: data.NewSong.Miss.song_info.album_picture_url,
-                            });
-                            const animes = data.NewSong.Miss.possible_anime
-                            setAnimeList2([]);
-                            setAnimeList(animes);
-                            setSeparator1(animes.length > 0 ? "Possible matches" : "No matches")
-                            setSeparator2("");
-
-                        } else if (data.NewSong.Hit) {
-                            const hit = data.NewSong.Hit;
-                            console.log(hit.anime_info);
-                            setSongInfo({
-                                title: hit.song_info.title,
-                                artists: hit.song_info.artists,
-                                album_picture_url: hit.song_info.album_picture_url,
-                            });
-                            setSeparator1(`${hit.certainty}% Match`);
-                            setAnimeList(hit.anime_info);
-
-                            setSeparator2("More by this artist");
-                            setAnimeList2(hit.more_with_artist);
-                        }
-                    } else if (data === "NotPlaying") {
-                        setSongInfo({
-                            title: "Not playing anything",
-                            artists: [],
-                            album_picture_url: "/Amq_icon_green.png",
-                        });
-                        setAnimeList([]);
-                        setAnimeList2([]);
-                        setSeparator2("");
-                        setSeparator1("");
-                    } else if (data === "LoginRequired") {
-                        window.location.href = "/api/login";
-                    } else if (data == "NoUpdates"){
-                    }
-                })
-            .catch((err) => console.error(err));
-        };
         // Run immediately, then every 5 seconds (5000ms)
         fetchUpdate(true);
         const intervalId = setInterval(fetchUpdate, 5000);
@@ -100,7 +108,7 @@ const Update = () => {
             )}
             <div className="anime-list" id="animes">
                 {animeList.map((anime, index) => (
-                    <AnimeEntry key={index} anime={anime} />
+                    <AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} show_song_title={true} after_anime_bind={() => fetchUpdate(true)}/>
                 ))}
             </div>
 
@@ -112,7 +120,7 @@ const Update = () => {
 
             <div className="anime-list" id="animes2">
                 {animeList2.map((anime, index) => (
-                    <AnimeEntry key={index} anime={anime} />
+                    <AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} show_song_title={true} after_anime_bind={() => fetchUpdate(true)}/>
                 ))}
             </div>
         </div>

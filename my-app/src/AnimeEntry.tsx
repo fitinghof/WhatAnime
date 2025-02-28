@@ -54,13 +54,41 @@ export interface AnimeInfo {
   anime_type: AnimeType;
   image_url?: string;
   linked_ids: LinkedIds;
+
+  song_name: string,
+  artist_ids: Array<number>,
 }
 
 interface AnimeEntryProps {
   anime: AnimeInfo;
+  show_confirm_button: boolean,
+  spotify_song_id: string,
+  show_song_title: boolean,
+  after_anime_bind: () => void;
 }
 
-const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime }) => {
+const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime, show_confirm_button, spotify_song_id, show_song_title, after_anime_bind }) => {
+
+  const handleConfirmClick = () => {
+    const params = {
+      song_name: anime.song_name,
+      artist_ids: anime.artist_ids,
+      spotify_id: spotify_song_id,
+    };
+    fetch("/api/confirm_anime", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params)
+    })
+    .then(response => response.text())
+    .then(data => {
+      console.log(data);
+      after_anime_bind();
+    })
+  };
+
   let animeSongNumber = parseTrackIndex(anime.track_index);
   let animeIndex = parseAnimeIndex(anime.anime_index);
   return (
@@ -74,6 +102,11 @@ const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime }) => {
         <div className="anime-title">
           {anime.title || "Unknown Anime"}
         </div>
+        {show_song_title &&
+          <div className="anime-song-title">
+            {`Song Title: ${anime.song_name}`}
+          </div>
+        }
         {
           <div className="anime-season">
             {`${animeIndex}`}
@@ -126,6 +159,16 @@ const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime }) => {
           </div>
         )}
       </div>
+
+      {show_confirm_button && (
+        <button className="anime-button" onClick={handleConfirmClick}>
+          <p>
+            Confirm<br></br> Anime
+          </p>
+        </button>
+      )}
+
+
     </div>
   );
 };

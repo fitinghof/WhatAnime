@@ -1,11 +1,11 @@
 use crate::types::ContentUpdate;
 use crate::{AppState, Error, Result};
 
-use super::responses::{CurrentlyPlayingResponse, CurrentlyPlayingResponses, SpotifyToken};
+use super::responses::{self, CurrentlyPlayingResponse, CurrentlyPlayingResponses, SpotifyToken, SpotifyUser, TrackObject};
 use axum::response::IntoResponse;
 use base64::{engine, Engine};
 use reqwest::header::{HeaderMap, HeaderValue};
-use reqwest::Client;
+use reqwest::{Client, StatusCode};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -111,5 +111,48 @@ pub async fn currently_playing(session: Session) -> Result<CurrentlyPlayingRespo
             url: "https://api.spotify.com/v1/me/player/currently-playing".to_string(),
             status_code: status,
         }),
+    }
+}
+
+pub async fn get_song(spotify_id: String, token: String) -> Result<TrackObject> {
+
+    //--header 'Authorization: Bearer 1POdFZRZbvb...qqillRxMr2z'
+    let url = format!("https://api.spotify.com/v1/tracks/{}", spotify_id);
+
+    println!("{}", &url);
+
+    let response = Client::new()
+    .get(&url)
+    .header("Authorization", format!("Bearer {}", token))
+    .send()
+    .await.unwrap();
+
+    if response.status().is_success() {
+        Ok(response.json().await.unwrap())
+    }
+    else {
+        let status = response.status();
+        println!("{}", response.text().await.unwrap());
+        Err(Error::BadRequest { url: url, status_code: status })
+    }
+}
+
+pub async fn get_user(token: String) -> Result<SpotifyUser> {
+    let url = "https://api.spotify.com/v1/me";
+
+    let response = Client::new()
+    .get(url)
+    .header("Authorization", format!("Bearer {}", &token))
+    .send()
+    .await
+    .unwrap();
+
+    if response.status().is_success() {
+        Ok(response.json().await.unwrap())
+    }
+    else {
+        let status = response.status();
+        println!("{}", response.text().await.unwrap());
+        Err(Error::BadRequest { url: "https://api.spotify.com/v1/me".to_string(), status_code: status })
     }
 }

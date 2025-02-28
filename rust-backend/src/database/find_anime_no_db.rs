@@ -99,7 +99,7 @@ impl Database {
                         .into_iter()
                         .partition(|anime| anime.1 == max_score);
 
-                    if max_score > 80.0 {
+                    if max_score > Self::ACCURACY_AUTOADD_LIMIT {
                         for anime in &animehit_evaluated {
                             let _ = self.try_add_anime_db(song, anime.0.clone()).await;
                         }
@@ -134,7 +134,7 @@ impl Database {
                         .filter(|value| value.1 == max_score)
                         .collect();
 
-                    if max_score > 80.0 {
+                    if max_score > Self::ACCURACY_AUTOADD_LIMIT {
                         for anime in &anime_hit_info {
                             let _ = self.try_add_anime_db(song, anime.0.clone()).await;
                         }
@@ -202,15 +202,7 @@ impl Database {
             }
 
             let miss = SongMiss {
-                song_info: SongInfo {
-                    title: song.name.clone(),
-                    artists: song
-                        .artists
-                        .iter()
-                        .map(|artist| artist.name.clone())
-                        .collect(),
-                    album_picture_url: song.album.images[0].url.clone(),
-                },
+                song_info: SongInfo::from_track_obj(song),
                 possible_anime: found_anime,
             };
 
