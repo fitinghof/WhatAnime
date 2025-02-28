@@ -330,6 +330,7 @@ dependencies = [
  "display",
  "dotenv",
  "env_logger",
+ "futures",
  "fuzzywuzzy",
  "hex",
  "itertools",

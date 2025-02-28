@@ -47,16 +47,16 @@ pub fn process_similarity(japanese_text: &str, romaji_text: &str) -> f32 {
         let normalized_romaji = normalize_text(romaji_text);
         let fuzz_value_full = fuzz::ratio(&normalized_japanese, &normalized_romaji);
 
-        let normalized_japanese_consonants = remove_vowels(&normalized_japanese)
-            .replace("r", "l")
-            .replace("b", "v");
-        let normalized_romaji_consonants = remove_vowels(&normalized_romaji)
-            .replace("r", "l")
-            .replace("b", "v");
+        // let normalized_japanese_consonants = remove_vowels(&normalized_japanese)
+        //     .replace("r", "l")
+        //     .replace("b", "v");
+        // let normalized_romaji_consonants = remove_vowels(&normalized_romaji)
+        //     .replace("r", "l")
+        //     .replace("b", "v");
 
         let fuzz_value_consonants = fuzz::ratio(
-            &normalized_japanese_consonants,
-            &normalized_romaji_consonants,
+            &normalized_japanese,
+            &normalized_romaji,
         );
         let consonant_weight = 0.9;
         let full_weight = 1.0 - consonant_weight;

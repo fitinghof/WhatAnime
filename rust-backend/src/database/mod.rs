@@ -5,8 +5,8 @@ use crate::anisong::{Anime, AnisongClient, Artist};
 use crate::japanese_processing::process_similarity;
 use crate::spotify::responses::TrackObject;
 use crate::types::{
-    AnimeIndex, AnimeTrackIndex, AnimeType, FrontendAnimeEntry, JikanAnime,
-    NewSong, SongHit, SongInfo, SongMiss,
+    AnimeIndex, AnimeTrackIndex, AnimeType, FrontendAnimeEntry, JikanAnime, NewSong, SongHit,
+    SongInfo, SongMiss,
 };
 use crate::{Error, Result};
 use databasetypes::{DBAnime, DBArtist};
@@ -118,7 +118,7 @@ impl Database {
         anisong_anime: Anime,
         info: JikanAnime,
         from_user_name: Option<String>,
-        from_user_mail: Option<String>
+        from_user_mail: Option<String>,
     ) -> Result<()> {
         let anime_index = AnimeIndex::from_str(&anisong_anime.animeCategory).unwrap();
         let anime_type = AnimeType::from_str(&anisong_anime.animeType.unwrap()).unwrap();
@@ -286,6 +286,7 @@ impl Database {
             VALUES (
             $1, $2, $3, $4, $5
             )
+            ON CONFLICT DO NOTHING
             "#,
         )
         .bind(artist_spotify_id.clone())
@@ -303,7 +304,14 @@ impl Database {
         spotify_track_object: &TrackObject,
         anisong_anime: Anime,
     ) -> Result<()> {
-        return self.try_add_anime(spotify_track_object, anisong_anime, Some("Database".to_string()), None).await;
+        return self
+            .try_add_anime(
+                spotify_track_object,
+                anisong_anime,
+                Some("Database".to_string()),
+                None,
+            )
+            .await;
     }
 
     pub async fn try_add_anime_user(
@@ -311,10 +319,23 @@ impl Database {
         spotify_track_object: &TrackObject,
         anisong_anime: Anime,
         from_user_name: Option<String>,
-        from_user_mail: Option<String>
+        from_user_mail: Option<String>,
     ) -> Result<()> {
-        println!("User {:?}, mail: {:?}, added bind for {}  ---  {}", &from_user_name, &from_user_mail, &anisong_anime.animeENName, &spotify_track_object.name);
-        return self.try_add_anime(spotify_track_object, anisong_anime, from_user_name, from_user_mail).await;
+        println!(
+            "User {:?}, mail: {:?}, added bind for {}  ---  {}",
+            &from_user_name,
+            &from_user_mail,
+            &anisong_anime.animeENName,
+            &spotify_track_object.name
+        );
+        return self
+            .try_add_anime(
+                spotify_track_object,
+                anisong_anime,
+                from_user_name,
+                from_user_mail,
+            )
+            .await;
     }
 
     pub async fn try_add_anime(
@@ -322,14 +343,20 @@ impl Database {
         spotify_track_object: &TrackObject,
         anisong_anime: Anime,
         from_user_name: Option<String>,
-        from_user_mail: Option<String>
+        from_user_mail: Option<String>,
     ) -> Result<()> {
         match anisong_anime.linked_ids.myanimelist {
             Some(id) => match fetch_jikan(id).await {
                 Ok(info) => {
-                    self.add_anime(spotify_track_object, anisong_anime, info, from_user_name, from_user_mail)
-                        .await
-                        .unwrap();
+                    self.add_anime(
+                        spotify_track_object,
+                        anisong_anime,
+                        info,
+                        from_user_name,
+                        from_user_mail,
+                    )
+                    .await
+                    .unwrap();
                     Ok(())
                 }
                 Err(e) => {
@@ -392,7 +419,6 @@ impl Database {
                 .iter()
                 .for_each(|a| return_anime_hit.push(FrontendAnimeEntry::from_db(a)));
 
-            let mut return_more_by_artists = Vec::new();
             let anisong_more_by_artists: Vec<Anime> = anisong_db
                 .get_animes_by_artists_ids(anime_result[0].artists_ann_id.clone())
                 .await
@@ -400,12 +426,9 @@ impl Database {
                 .into_iter()
                 .filter(|a| anime_set.insert((a.annId, a.annSongId)))
                 .collect();
-            if anisong_more_by_artists.len() > 0 {
-                for anime in anisong_more_by_artists {
-                    return_more_by_artists
-                        .push(FrontendAnimeEntry::from_anisong(&anime).await.unwrap());
-                }
-            }
+
+            let mut return_more_by_artists = FrontendAnimeEntry::from_anisongs(&anisong_more_by_artists.iter().collect()).await.unwrap();
+
             for anime in more_by_artists_db {
                 return_more_by_artists.push(FrontendAnimeEntry::from_db(&anime));
             }
@@ -420,7 +443,7 @@ impl Database {
                 certainty: 100,
             }))
         } else {
-            // --------- GET BY ARTISTS ---------------
+            // --------------- GET BY ARTISTS ---------------
 
             let artists_db = self
                 .get_artists_spotify_id(
@@ -460,8 +483,9 @@ impl Database {
 
                         if best_score > Self::ACCURACY_AUTOADD_LIMIT {
                             for anime in &animehit {
-                                let _ =
-                                    self.try_add_anime_db(spotify_track_object, anime.0.clone()).await;
+                                let _ = self
+                                    .try_add_anime_db(spotify_track_object, anime.0.clone())
+                                    .await;
                             }
 
                             // try adding artist to database if correctness can be semi garanteed
@@ -486,17 +510,9 @@ impl Database {
                             }
                         }
 
-                        let mut anime_info = Vec::with_capacity(animehit.len());
-                        for anime in animehit {
-                            anime_info
-                                .push(FrontendAnimeEntry::from_anisong(anime.0).await.unwrap());
-                        }
+                        let mut anime_info = FrontendAnimeEntry::from_anisongs(&animehit.iter().map(|a|a.0).collect()).await.unwrap();
 
-                        let mut more_with_artist = Vec::with_capacity(more_by_artists.len());
-                        for anime in more_by_artists {
-                            more_with_artist
-                                .push(FrontendAnimeEntry::from_anisong(anime.0).await.unwrap());
-                        }
+                        let mut more_with_artist = FrontendAnimeEntry::from_anisongs(&more_by_artists.iter().map(|a|a.0).collect()).await.unwrap();
 
                         anime_info.sort_by(|a, b| a.title.cmp(&b.title));
                         more_with_artist.sort_by(|a, b| a.title.cmp(&b.title));
@@ -508,13 +524,9 @@ impl Database {
                             certainty: 100,
                         }));
                     } else {
-                        let mut possible_anime = Vec::with_capacity(anisong_anime.len());
-                        for anime in anisong_anime {
-                            possible_anime
-                                .push(FrontendAnimeEntry::from_anisong(&anime).await.unwrap());
-                        }
+                        let mut possible_anime = FrontendAnimeEntry::from_anisongs(&anisong_anime.iter().collect()).await.unwrap();
 
-                        possible_anime.sort_by(|a,b| a.title.cmp(&b.title));
+                        possible_anime.sort_by(|a, b| a.title.cmp(&b.title));
 
                         return Ok(NewSong::Miss(SongMiss {
                             song_info: SongInfo::from_track_obj(spotify_track_object),

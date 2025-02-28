@@ -38,8 +38,7 @@ const Update = () => {
 
                     } else if (data.NewSong.Hit) {
                         const hit = data.NewSong.Hit;
-                        setShowConfirmButton(hit.certainty < 90);
-                        console.log(hit.anime_info);
+                        setShowConfirmButton(hit.certainty < 80);
                         setSongInfo({
                             title: hit.song_info.title,
                             artists: hit.song_info.artists,
@@ -56,7 +55,7 @@ const Update = () => {
                     setSongInfo({
                         title: "Not playing anything",
                         artists: [],
-                        album_picture_url: "/Amq_icon_green.png",
+                        album_picture_url: "/amq_icon_green.svg",
                     });
                     setAnimeList([]);
                     setAnimeList2([]);
@@ -71,7 +70,6 @@ const Update = () => {
     };
 
     useEffect(() => {
-        console.log("Update component mounted");
         // Run immediately, then every 5 seconds (5000ms)
         fetchUpdate(true);
         const intervalId = setInterval(fetchUpdate, 5000);
@@ -108,7 +106,7 @@ const Update = () => {
             )}
             <div className="anime-list" id="animes">
                 {animeList.map((anime, index) => (
-                    <AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} show_song_title={true} after_anime_bind={() => fetchUpdate(true)}/>
+                    <AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} after_anime_bind={() => fetchUpdate(true)}/>
                 ))}
             </div>
 
@@ -120,7 +118,7 @@ const Update = () => {
 
             <div className="anime-list" id="animes2">
                 {animeList2.map((anime, index) => (
-                    <AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} show_song_title={true} after_anime_bind={() => fetchUpdate(true)}/>
+                    <AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} after_anime_bind={() => fetchUpdate(true)}/>
                 ))}
             </div>
         </div>

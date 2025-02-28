@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 export interface AnimeIndex {
   Season?: number,
@@ -14,7 +14,6 @@ function parseAnimeIndex(animeIndex: AnimeIndex): string {
   if (animeIndex.ONA !== undefined) return `ONA ${animeIndex.ONA ? animeIndex.ONA : 1}`;
   if (animeIndex.OVA !== undefined) return `OVA ${animeIndex.OVA ? animeIndex.OVA : 1}`;
   if (animeIndex.TVSpecial !== undefined) return `OVA ${animeIndex.TVSpecial ? animeIndex.TVSpecial : 1}`;
-  console.log(animeIndex);
   return "wacky season"
 }
 
@@ -57,17 +56,66 @@ export interface AnimeInfo {
 
   song_name: string,
   artist_ids: Array<number>,
+  artist_names: Array<String>,
 }
 
 interface AnimeEntryProps {
   anime: AnimeInfo;
   show_confirm_button: boolean,
   spotify_song_id: string,
-  show_song_title: boolean,
   after_anime_bind: () => void;
 }
 
-const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime, show_confirm_button, spotify_song_id, show_song_title, after_anime_bind }) => {
+function linked_ids(anime_ids: LinkedIds) {
+  if (anime_ids === undefined) return null;
+  return (
+    <div className="anime-links">
+            {anime_ids.myanimelist && (
+              <a
+                href={`https://myanimelist.net/anime/${anime_ids.myanimelist}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                MAL
+              </a>
+            )}
+            {anime_ids.anilist && (
+              <a
+                href={`https://anilist.co/anime/${anime_ids.anilist}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Anilist
+              </a>
+            )}
+            {anime_ids.anidb && (
+              <a
+                href={`https://anidb.net/anime/${anime_ids.anidb}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                AniDB
+              </a>
+            )}
+            {anime_ids.kitsu && (
+              <a
+                href={`https://kitsu.io/anime/${anime_ids.kitsu}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Kitsu
+              </a>
+            )}
+          </div>
+  );
+}
+
+const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime, show_confirm_button, spotify_song_id, after_anime_bind }) => {
+  const [showMoreInfo, setShowMoreInfo] = useState(false);
+
+  useEffect(() => {
+    setShowMoreInfo(false);
+  }, [anime]);
 
   const handleConfirmClick = () => {
     const params = {
@@ -82,11 +130,11 @@ const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime, show_confirm_button, spo
       },
       body: JSON.stringify(params)
     })
-    .then(response => response.text())
-    .then(data => {
-      console.log(data);
-      after_anime_bind();
-    })
+      .then(response => response.text())
+      .then(data => {
+        console.log(data);
+        after_anime_bind();
+      })
   };
 
   let animeSongNumber = parseTrackIndex(anime.track_index);
@@ -94,7 +142,7 @@ const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime, show_confirm_button, spo
   return (
     <div className="anime-item">
       <img
-        src={anime.image_url ?? "/Amq_icon_green.png"}
+        src={anime.image_url ?? "/amq_icon_green.svg"}
         alt="Anime art"
         className="anime-art"
       />
@@ -102,62 +150,36 @@ const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime, show_confirm_button, spo
         <div className="anime-title">
           {anime.title || "Unknown Anime"}
         </div>
-        {show_song_title &&
-          <div className="anime-song-title">
-            {`Song Title: ${anime.song_name}`}
+
+        {showMoreInfo &&
+          <div className="extra-info">
+            <div className="anime-song-title">
+              {`Song Title: ${anime.song_name}`}
+            </div>
+
+            <div className="anime-artists-names">
+              {`Artists: ${anime.artist_names.join(", ")}`}
+            </div>
+
+            <div className="anime-season">
+              {`${animeIndex}`}
+            </div>
+
+            <div className="anime-opening">
+              {animeSongNumber}
+            </div>
+
+            <div className="anime-type">
+              {`Type: ${anime.anime_type || "Unknown"}`}
+            </div>
+            {linked_ids(anime.linked_ids)}
           </div>
         }
-        {
-          <div className="anime-season">
-            {`${animeIndex}`}
-          </div>
-        }
-        <div className="anime-opening">
-          {animeSongNumber}
-        </div>
-        <div className="anime-type">
-          {`Type: ${anime.anime_type || "Unknown"}`}
-        </div>
-        {anime.linked_ids && (
-          <div className="anime-links">
-            {anime.linked_ids.myanimelist && (
-              <a
-                href={`https://myanimelist.net/anime/${anime.linked_ids.myanimelist}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                MAL
-              </a>
-            )}
-            {anime.linked_ids.anilist && (
-              <a
-                href={`https://anilist.co/anime/${anime.linked_ids.anilist}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Anilist
-              </a>
-            )}
-            {anime.linked_ids.anidb && (
-              <a
-                href={`https://anidb.net/anime/${anime.linked_ids.anidb}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                AniDB
-              </a>
-            )}
-            {anime.linked_ids.kitsu && (
-              <a
-                href={`https://kitsu.io/anime/${anime.linked_ids.kitsu}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Kitsu
-              </a>
-            )}
-          </div>
-        )}
+
+        {/* Toggle Button */}
+        <button className="toggle-extra-info-button" onClick={() => setShowMoreInfo(!showMoreInfo)}>
+          {showMoreInfo ? "Hide Info" : "Show More Info"}
+        </button>
       </div>
 
       {show_confirm_button && (

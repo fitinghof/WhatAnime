@@ -23,8 +23,8 @@ a {
 
 .favicon {
     border-radius: 50%; /* Makes it round */
-    width: 32px; /* Adjust as needed */
-    height: 32px;
+    width: 35px; /* Adjust as needed */
+    height: 35px;
 }
 
 /* Now Playing Section */
@@ -141,7 +141,7 @@ a {
 
 .anime-info {
     order: 1;
-    display: flex;
+    display: center;
     flex-direction: column;
     justify-content: space-between;
 }
@@ -164,6 +164,12 @@ a {
 }
 
 .anime-song-title {
+    font-size: 14px;
+    margin-top: 5px;
+    color: #b3b3b3;
+}
+
+.anime-artists-names {
     font-size: 14px;
     margin-top: 5px;
     color: #b3b3b3;
@@ -222,4 +228,20 @@ a {
 
 .anime-button:hover {
     background: #195e0b;
+}
+
+.toggle-extra-info-button {
+    font-size: 14px;
+    margin-left: auto;
+    margin-top: 10px;
+    padding: 8px 8px;
+    right: 0;
+    background: #2d2e30;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.233);
+    color: #d47508;
+    border: none;
+    border-radius: 10%;
+    cursor: pointer;
+    order: 2;
+    min-width: 120px;
 }

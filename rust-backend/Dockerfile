@@ -1,38 +1,29 @@
-# Use the official Rust image as the base image
-FROM rust:latest AS builder
+FROM rust:1.49 as build
 
-# Set the working directory inside the container
-WORKDIR /usr/src/app
+# create a new empty shell project
+RUN USER=root cargo new --bin backend
+WORKDIR /backend
 
-# Copy the Cargo.toml and Cargo.lock files
-COPY Cargo.toml Cargo.lock ./
+# copy over your manifests
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./Cargo.toml ./Cargo.toml
 
-# Copy the source code
-COPY . .
+# this build step will cache your dependencies
+RUN cargo build --release
+RUN rm src/*.rs
 
-# Build the application
+# copy your source tree
+COPY ./src ./src
+
+# build for release
+RUN rm ./target/release/deps/backend*
 RUN cargo build --release
 
-# Use a minimal base image for the final stage
-FROM debian:buster-slim
+# our final base
+FROM rust:1.49-slim-buster
 
-# Install the necessary dependencies
-RUN apt-get update && apt-get install -y \
-    libssl-dev \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# copy the build artifact from the build stage
+COPY --from=build /holodeck/target/release/holodeck .
 
-# Set the working directory inside the container
-WORKDIR /usr/src/app
-
-# Copy the built binary from the builder stage
-COPY --from=builder /usr/src/app/target/release/backend .
-
-# Copy the .env file
-COPY .env .env
-
-# Expose the port that the application will run on
-EXPOSE 3000
-
-# Set the entrypoint command to run the application
-CMD ["./backend"]
+# set the startup command to run your binary
+CMD ["./holodeck"]

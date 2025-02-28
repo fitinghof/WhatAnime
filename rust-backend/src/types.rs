@@ -2,6 +2,7 @@ use std::fmt::format;
 
 use crate::{anisong::{self, Anime, AnimeListLinks}, database::{databasetypes::DBAnime, find_anime_no_db::fetch_jikan }, spotify::responses::TrackObject, Error, Result};
 use axum::response::IntoResponse;
+use futures::future::join_all;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::to_string;
@@ -18,7 +19,7 @@ impl SongInfo {
     pub fn from_track_obj(track_object: &TrackObject) -> Self {
         Self {
             title: track_object.name.clone(),
-            artists: track_object.artists.iter().map(|a| a.name.clone()).intersperse(", ".to_string()).collect(),
+            artists: track_object.artists.iter().map(|a| a.name.clone()).collect(),
             album_picture_url: track_object.album.images[0].url.clone(),
             spotify_id: track_object.id.clone(),
         }
@@ -188,6 +189,7 @@ pub struct FrontendAnimeEntry {
 
     pub song_name: String,
     pub artist_ids: Vec<i32>,
+    pub artist_names: Vec<String>,
 }
 impl FrontendAnimeEntry {
     pub fn new(anisong_anime: &anisong::Anime, image_url: Option<String>) -> Result<Self> {
@@ -207,6 +209,7 @@ impl FrontendAnimeEntry {
 
             song_name: anisong_anime.songName.clone(),
             artist_ids: anisong_anime.artists.iter().map(|a| a.id.clone()).collect(),
+            artist_names: anisong_anime.artists.iter().map(|a| a.names[0].clone()).collect(),
         })
     }
     pub fn from_db(db_anime: &DBAnime) -> Self {
@@ -225,6 +228,7 @@ impl FrontendAnimeEntry {
             },
             song_name: db_anime.song_name.clone(),
             artist_ids: db_anime.artists_ann_id.clone(),
+            artist_names: db_anime.artist_names.iter().map(|a| a.clone()).collect(),
         }
     }
 
@@ -237,6 +241,14 @@ impl FrontendAnimeEntry {
                 .ok();
         }
         Ok(Self::new(&anisong, image_url).unwrap())
+    }
+
+    pub async fn from_anisongs(anisongs: &Vec<&Anime>) -> Result<Vec<FrontendAnimeEntry>> {
+        let mut future_anime = Vec::with_capacity(anisongs.len());
+        for anime in anisongs {
+            future_anime.push(FrontendAnimeEntry::from_anisong(&anime));
+        }
+        Ok(join_all(future_anime).await.into_iter().map(|a| a.unwrap()).collect())
     }
 
 }

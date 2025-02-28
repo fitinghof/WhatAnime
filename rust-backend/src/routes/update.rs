@@ -1,10 +1,11 @@
 use std::{
     sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 use axum::{extract::{Query, State}, response::IntoResponse, Json};
-use serde::{Deserialize, Serialize};
+use serde::{de::value, Deserialize, Serialize};
+use tokio::io::DuplexStream;
 use tower_sessions::Session;
 
 use crate::{
@@ -51,8 +52,11 @@ pub async fn update(
                         return Ok(Json(ContentUpdate::NoUpdates));
                     }
                     session.insert("previously_played", &song.id).await.unwrap();
-                    return Ok(Json(ContentUpdate::NewSong(app_state.database.get_anime(&song, &app_state.anisong_db, 40.0).await.unwrap())));
-                    // return Ok(Json(ContentUpdate::NewSong(find_most_likely_anime(&song, 40.0, &app_state.anisong_db).await.unwrap())));
+                    let start = Instant::now();
+                    let value = Ok(Json(ContentUpdate::NewSong(app_state.database.get_anime(&song, &app_state.anisong_db, 40.0).await.unwrap())));
+                    let duration = start.elapsed();
+                    println!("Time to find animes: {:?}", duration);
+                    value
                 }
                 _ => {
                     Err(Error::NotASong)

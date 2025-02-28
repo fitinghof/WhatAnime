@@ -1,3 +1,1 @@
- * Use slightly smaller picture, currently pages get's a little slow with artists / VA:s with 180 different entries, like Sumire Uesaka
- * Currently depending on if the song was found be artist or songname you will either get all animes that *ANY* of the artists has made or *ALL* artists made together, fix this
- 
+ * Switch to Anilist api from Jikan for extra data, with that API multi anime queries should be possible bypassing the painfull ratelimit of Jikan that seems to be per s or something (extremly unsuited for my needs)

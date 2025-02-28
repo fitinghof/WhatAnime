@@ -3,9 +3,10 @@ use crate::anisong::{Anime, AnisongClient};
 use crate::japanese_processing::process_possible_japanese;
 use crate::spotify::responses::TrackObject;
 use crate::types::{
-    self, FrontendAnimeEntry as ReturnAnime, JikanAnime, JikanResponses, NewSong, SongHit,
+    self, FrontendAnimeEntry, JikanAnime, JikanResponses, NewSong, SongHit,
     SongInfo, SongMiss,
 };
+use futures::future::join_all;
 use crate::{Error, Result};
 
 use fuzzywuzzy::fuzz;
@@ -113,15 +114,8 @@ impl Database {
                         }
                     }
 
-                    let mut anime_hit_info_vec = Vec::new();
-                    for anime in animehit_evaluated {
-                       anime_hit_info_vec.push(ReturnAnime::from_anisong(&anime.0).await.unwrap());
-                    }
-
-                    let mut anime_more_by_artist_info_vec = Vec::new();
-                    for anime in more_by_artists {
-                        anime_more_by_artist_info_vec.push(ReturnAnime::from_anisong(&anime.0).await.unwrap());
-                    }
+                    let mut anime_hit_info_vec = FrontendAnimeEntry::from_anisongs(&animehit_evaluated.iter().map(|a| &a.0).collect()).await.unwrap();
+                    let mut anime_more_by_artist_info_vec = FrontendAnimeEntry::from_anisongs(&more_by_artists.iter().map(|a| &a.0).collect()).await.unwrap();
 
                     anime_hit_info_vec.sort_by(|a, b| a.title.cmp(&b.title));
                     anime_more_by_artist_info_vec.sort_by(|a, b| a.title.cmp(&b.title));
@@ -145,10 +139,7 @@ impl Database {
                         }
                     }
 
-                    let mut anime_hit_info_vec = Vec::new();
-                    for anime in &anime_hit_info {
-                        anime_hit_info_vec.push(ReturnAnime::from_anisong(&anime.0).await.unwrap());
-                    }
+                    let mut anime_hit_info_vec = FrontendAnimeEntry::from_anisongs(&anime_hit_info.iter().map(|a| &a.0).collect()).await.unwrap();
 
                     let anime_more_by_artist_info = anisong_db
                         .get_animes_by_artists_ids(
@@ -160,10 +151,9 @@ impl Database {
                                 .collect(),
                         )
                         .await?;
-                    let mut anime_more_by_artists_info_vec = Vec::new();
-                    for anime in anime_more_by_artist_info {
-                        anime_more_by_artists_info_vec.push(ReturnAnime::from_anisong(&anime).await.unwrap());
-                    }
+
+                    let mut anime_more_by_artists_info_vec = FrontendAnimeEntry::from_anisongs(&anime_more_by_artist_info.iter().map(|a| a).collect()).await.unwrap();
+
                     anime_hit_info_vec.sort_by(|a, b| a.title.cmp(&b.title));
                     anime_more_by_artists_info_vec.sort_by(|a, b| a.title.cmp(&b.title));
 
@@ -179,10 +169,8 @@ impl Database {
 
                 return Ok(types::NewSong::Hit(hit));
             } else {
-                let mut possible_anime = Vec::new();
-                for anime in weighed_anime {
-                    possible_anime.push(ReturnAnime::from_anisong(&anime.0).await.unwrap());
-                }
+
+                let possible_anime = FrontendAnimeEntry::from_anisongs(&weighed_anime.iter().map(|a| &a.0).collect()).await.unwrap();
 
                 let miss = SongMiss {
                     song_info: SongInfo::from_track_obj(song),
@@ -196,11 +184,9 @@ impl Database {
                 .get_animes_by_song_title(romanji_title.clone(), true)
                 .await
                 .unwrap();
-            let mut found_anime = Vec::new();
-            for anime in possible_anime {
-                found_anime.push(ReturnAnime::from_anisong(&anime).await.unwrap());
-            }
 
+            let found_anime = FrontendAnimeEntry::from_anisongs(&possible_anime.iter().map(|a| a).collect()).await.unwrap();
+            
             let miss = SongMiss {
                 song_info: SongInfo::from_track_obj(song),
                 possible_anime: found_anime,

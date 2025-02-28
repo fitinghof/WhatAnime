@@ -119,8 +119,6 @@ pub async fn get_song(spotify_id: String, token: String) -> Result<TrackObject> 
     //--header 'Authorization: Bearer 1POdFZRZbvb...qqillRxMr2z'
     let url = format!("https://api.spotify.com/v1/tracks/{}", spotify_id);
 
-    println!("{}", &url);
-
     let response = Client::new()
     .get(&url)
     .header("Authorization", format!("Bearer {}", token))
