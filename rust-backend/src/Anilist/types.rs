@@ -11,6 +11,13 @@ use crate::{Result, Error};
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, FromRow, Deserialize, Serialize, Clone, Copy, Type)]
 #[sqlx(transparent)]
 pub struct AnilistID(pub i32);
+
+impl From<i32> for AnilistID {
+    fn from(id: i32) -> Self {
+        Self{0: id}
+    }
+}
+
 #[derive(Deserialize, Serialize, FromRow)]
 pub struct MediaTitle {
     pub romaji: Option<String>,
@@ -28,7 +35,7 @@ impl ImageURL {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, FromRow, Deserialize, Serialize, Type)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, FromRow, Deserialize, Serialize, Type, Clone)]
 #[sqlx(transparent)]
 pub struct HexColor(String);
 
@@ -41,7 +48,7 @@ pub struct CoverImage {
     pub extra_large: Option<ImageURL>,
 }
 
-#[derive(Debug, Deserialize, Serialize, TryFromPrimitive)]
+#[derive(Debug, Deserialize, Serialize, TryFromPrimitive, Clone)]
 #[repr(i16)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum MediaFormat {
@@ -57,10 +64,11 @@ pub enum MediaFormat {
     OneShot,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, FromRow, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, FromRow, Deserialize, Serialize, Type)]
+#[sqlx(transparent)]
 pub struct Genre(String);
 
-#[derive(Debug, Deserialize, Serialize, TryFromPrimitive)]
+#[derive(Debug, Deserialize, Serialize, TryFromPrimitive, Clone)]
 #[repr(i16)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum MediaSource {
@@ -81,7 +89,7 @@ pub enum MediaSource {
     PictureBook,
 }
 
-#[derive(Debug, Deserialize, Serialize, TryFromPrimitive)]
+#[derive(Debug, Deserialize, Serialize, TryFromPrimitive, Clone)]
 #[repr(i16)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ReleaseSeason {
@@ -112,9 +120,9 @@ pub struct Studio {
 #[derive(Deserialize, Serialize, FromRow)]
 pub struct StudioConnection {
     // edges: StudioEdge
-    nodes: Vec<Studio>, // pageInfo: PageInfo
+    pub nodes: Vec<Studio>, // pageInfo: PageInfo
 }
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, FromRow, Deserialize, Serialize, Type)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, FromRow, Deserialize, Serialize, Type, Clone)]
 #[sqlx(transparent)]
 pub struct TagID(i32);
 #[derive(Deserialize, Serialize, FromRow)]

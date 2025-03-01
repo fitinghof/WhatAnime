@@ -4,7 +4,7 @@ use crate::{
     Anilist::{Media, types::ImageURL},
     Error, Result,
     anisong::{self, Anime, AnimeListLinks},
-    database::{databasetypes::DBAnime, find_anime_no_db::fetch_jikan},
+    database::{databasetypes::DBAnime},
     spotify::responses::TrackObject,
 };
 use axum::response::IntoResponse;
@@ -201,7 +201,7 @@ pub struct FrontendAnimeEntry {
     pub artist_names: Vec<String>,
 }
 impl FrontendAnimeEntry {
-    pub fn new(anisong_anime: &anisong::Anime, image_url: Option<String>) -> Result<Self> {
+    pub fn new(anisong_anime: &anisong::Anime, image_url: Option<ImageURL>) -> Result<Self> {
         let anime_type = if anisong_anime.animeType.is_some() {
             AnimeType::from_str(&anisong_anime.animeType.as_ref().unwrap()).ok()
         } else {
@@ -213,11 +213,7 @@ impl FrontendAnimeEntry {
             anime_index: AnimeIndex::from_str(&anisong_anime.animeCategory).unwrap(),
             track_index: AnimeTrackIndex::from_str(&anisong_anime.songType).unwrap(),
             anime_type: anime_type,
-            image_url: if image_url.is_some() {
-                Some(ImageURL::from_str(&image_url.unwrap()))
-            } else {
-                None
-            },
+            image_url,
             linked_ids: anisong_anime.linked_ids.clone(),
 
             song_name: anisong_anime.songName.clone(),
@@ -240,7 +236,11 @@ impl FrontendAnimeEntry {
             )
             .unwrap(),
             anime_type: AnimeType::from_db(db_anime.anime_type).ok(),
-            image_url: Some(ImageURL::from_str(&db_anime.image_url_webp_normal)),
+            image_url: if db_anime.cover_image_medium.is_some() {
+                Some(ImageURL::from_str(&db_anime.cover_image_medium.as_ref().unwrap()))
+            } else {
+                None
+            },
             linked_ids: AnimeListLinks {
                 myanimelist: db_anime.mal_id,
                 anidb: db_anime.anidb_id,
@@ -255,11 +255,12 @@ impl FrontendAnimeEntry {
 
     pub async fn from_anisong(anisong: &Anime) -> Result<Self> {
         let mut image_url = None;
-        if anisong.linked_ids.myanimelist.is_some() {
-            image_url = fetch_jikan(anisong.linked_ids.myanimelist.unwrap())
+        if anisong.linked_ids.anilist.is_some() {
+            image_url = Media::fetch_one(anisong.linked_ids.anilist.unwrap())
                 .await
-                .map(|info| info.images.webp.image_url)
-                .ok();
+                .unwrap()
+                .cover_image.map(|a| a.medium)
+                .flatten();
         }
         Ok(Self::new(&anisong, image_url).unwrap())
     }

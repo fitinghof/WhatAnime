@@ -8,10 +8,12 @@ use crate::types::{
     AnimeIndex, AnimeTrackIndex, AnimeType, FrontendAnimeEntry, JikanAnime, NewSong, SongHit,
     SongInfo, SongMiss,
 };
+use crate::Anilist::types::{Genre, TagID, URL};
+use crate::Anilist::{self, Media};
 use crate::{Error, Result};
 use databasetypes::{DBAnime, DBArtist};
-use find_anime_no_db::fetch_jikan;
 use itertools::Itertools;
+use reqwest::StatusCode;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
 use std::collections::HashSet;
@@ -116,7 +118,7 @@ impl Database {
         &self,
         spotify_track_object: &TrackObject,
         anisong_anime: Anime,
-        info: JikanAnime,
+        info: Media,
         from_user_name: Option<String>,
         from_user_mail: Option<String>,
     ) -> Result<()> {
@@ -134,134 +136,67 @@ impl Database {
                 anime_type,
                 source,
                 episodes,
-                image_url_jpg_small,
-                image_url_jpg_normal,
-                image_url_jpg_big,
-                image_url_webp_small,
-                image_url_webp_normal,
-                image_url_webp_big,
-                youtube_id,
-                url,
-                embed_url,
-                image_url,
-                small_image_url,
-                medium_image_url,
-                large_image_url,
-                maximum_image_url,
-                mal_id,
-                anilist_id,
-                anidb_id,
-                kitsu_id,
-                year,
-                studios,
-                producers,
+                mean_score,
+                banner_image,
+                cover_image_color,
+                cover_image_medium,
+                cover_image_large,
+                cover_image_extra_large,
+                media_format,
                 genres,
-                themes,
-                score,
-                spotify_id,
-                ann_song_id,
-                song_name,
-                spotify_artist_ids,
-                artist_names,
-                artists_ann_id,
-                composers_ann_id,
-                arrangers_ann_id,
-                track_index_type,
-                track_index_number,
+                source,
+                studio_ids,
+                studio_names,
+                studio_urls,
+                tag_ids,
+                tag_names,
+                trailer_id,
+                trailer_site,
+                thumbnail,
+                release_season,
+                release_year,
                 from_user_name,
                 from_user_mail
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                 $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-                $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33,
-                $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44
+                $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31
             )
             ON CONFLICT DO NOTHING
-            "#,
-        )
+        "#)
         .bind(anisong_anime.annId) // i32
         .bind(anisong_anime.animeENName) // String
         .bind(anisong_anime.animeJPName) // String
         .bind(anime_index.discriminant() as i16) // i16
         .bind(anime_index.value()) // i32
         .bind(anime_type as i16) // i16
-        .bind(info.source) // String
+        .bind(info.source.as_ref().map(|s| s.clone() as i16)) // Option<String>
         .bind(info.episodes) // Option<i32>
-        .bind(info.images.jpg.small_image_url) // String
-        .bind(info.images.jpg.image_url) // String
-        .bind(info.images.jpg.large_image_url) // String
-        .bind(info.images.webp.small_image_url) // String
-        .bind(info.images.webp.image_url) // String
-        .bind(info.images.webp.large_image_url) // String
-        .bind(info.trailer.youtube_id) // Option<String>
-        .bind(info.trailer.url) // Option<String>
-        .bind(info.trailer.embed_url) // Option<String>
-        .bind(info.trailer.images.image_url)
-        .bind(info.trailer.images.small_image_url) // Option<String>
-        .bind(info.trailer.images.medium_image_url) // Option<String>
-        .bind(info.trailer.images.large_image_url) // Option<String>
-        .bind(info.trailer.images.maximum_image_url) // Option<String>
-        .bind(anisong_anime.linked_ids.myanimelist) // Option<i32>
-        .bind(anisong_anime.linked_ids.anilist.map(|id| id.0)) // Option<i32>
-        .bind(anisong_anime.linked_ids.anidb) // Option<i32>
-        .bind(anisong_anime.linked_ids.kitsu) // Option<i32>
-        .bind(info.year) // Option<i32>
-        .bind(info.studios.iter().map(|s| s.mal_id).collect::<Vec<i32>>()) // Vec<i32>
-        .bind(
-            info.producers
-                .iter()
-                .map(|p| p.mal_id)
-                .collect::<Vec<i32>>(),
-        ) // Vec<i32>
-        .bind(info.genres.iter().map(|g| g.mal_id).collect::<Vec<i32>>()) // Vec<i32>
-        .bind(info.themes.iter().map(|t| t.mal_id).collect::<Vec<i32>>()) // Vec<i32>
-        .bind(info.score)
-        .bind(spotify_track_object.id.clone())
-        .bind(anisong_anime.annSongId)
-        .bind(anisong_anime.songName)
-        .bind(
-            spotify_track_object
-                .artists
-                .iter()
-                .map(|a| a.id.clone())
-                .collect::<Vec<String>>(),
-        )
-        .bind(
-            anisong_anime
-                .artists
-                .iter()
-                .map(|a| a.names[0].clone())
-                .collect::<Vec<String>>(),
-        )
-        .bind(
-            anisong_anime
-                .artists
-                .iter()
-                .map(|a| a.id)
-                .collect::<Vec<i32>>(),
-        ) // f32
-        .bind(
-            anisong_anime
-                .composers
-                .iter()
-                .map(|a| a.id)
-                .collect::<Vec<i32>>(),
-        ) // f32
-        .bind(
-            anisong_anime
-                .arrangers
-                .iter()
-                .map(|a| a.id)
-                .collect::<Vec<i32>>(),
-        )
-        .bind(track_index.discriminant() as i16)
-        .bind(track_index.value())
-        .bind(from_user_name)
-        .bind(from_user_mail)
+        .bind(info.mean_score) // i32
+        .bind(info.banner_image.as_ref()) // Option<String>
+        .bind(info.cover_image.as_ref().and_then(|c| c.color.clone())) // Option<String>
+        .bind(info.cover_image.as_ref().and_then(|c| c.medium.clone())) // Option<String>
+        .bind(info.cover_image.as_ref().and_then(|c| c.large.clone())) // Option<String>
+        .bind(info.cover_image.as_ref().and_then(|c| c.extra_large.clone())) // Option<String>
+        .bind(info.format.map(|f| f as i16)) // Option<MediaFormat>
+        .bind(info.genres.as_ref()) // Option<Vec<Genre>>
+        .bind(info.source.as_ref().map(|a| a.clone() as i16)) // Option<MediaSource>
+        .bind(info.studios.as_ref().map(|s| s.nodes.iter().map(|s| s.id).collect::<Vec<i32>>())) // Option<Vec<i32>>
+        .bind(info.studios.as_ref().map(|s| s.nodes.iter().map(|s| s.name.clone()).collect::<Vec<Option<String>>>()))
+        .bind(info.studios.as_ref().map(|s| s.nodes.iter().map(|s| s.site_url.clone()).collect::<Vec<Option<URL>>>()))
+        .bind(info.tags.as_ref().map(|t| t.iter().map(|a| a.id.clone()).collect::<Vec<TagID>>())) // Option<Vec<i32>>
+        .bind(info.tags.as_ref().map(|t| t.iter().map(|t| t.name.clone()).collect::<Vec<Option<String>>>()))
+        .bind(info.trailer.as_ref().map(|t| t.id.clone())) // Option<String>
+        .bind(info.trailer.as_ref().map(|t| t.site.clone())) // Option<String>
+        .bind(info.trailer.as_ref().map(|t| t.thumbnail.clone())) // Option<String>
+        .bind(info.season.map(|s| s as i16)) // Option<ReleaseSeason>
+        .bind(info.season_year) // Option<i32>
+        .bind(from_user_name) // Option<String>
+        .bind(from_user_mail) // Option<String>
         .execute(&self.pool)
         .await
-        .unwrap(); // f32
+        .unwrap();
         Ok(())
     }
 
@@ -345,9 +280,9 @@ impl Database {
         from_user_name: Option<String>,
         from_user_mail: Option<String>,
     ) -> Result<()> {
-        match anisong_anime.linked_ids.myanimelist {
-            Some(id) => match fetch_jikan(id).await {
-                Ok(info) => {
+        match anisong_anime.linked_ids.anilist {
+            Some(id) => match Media::fetch_one(id).await {
+                Some(info) => {
                     self.add_anime(
                         spotify_track_object,
                         anisong_anime,
@@ -359,9 +294,9 @@ impl Database {
                     .unwrap();
                     Ok(())
                 }
-                Err(e) => {
-                    println!("Failed to fetch jikan for {}", anisong_anime.animeENName);
-                    Err(e)
+                None => {
+                    println!("Failed to fetch anilist info for {}", anisong_anime.animeENName);
+                    Err(Error::BadRequest { url: "Anilist and whatever their URL is".to_string(), status_code: StatusCode::BAD_REQUEST })
                 }
             },
             None => Ok(()),

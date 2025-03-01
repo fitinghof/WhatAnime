@@ -13,29 +13,6 @@ use fuzzywuzzy::fuzz;
 use itertools::Itertools;
 use reqwest::Client;
 
-pub async fn fetch_jikan(mal_id: i32) -> Result<JikanAnime> {
-    let response = Client::new()
-        .get(format!("https://api.jikan.moe/v4/anime/{}", mal_id))
-        .send()
-        .await?;
-
-    if response.status().is_success() {
-        let jikan_response = response.json().await.unwrap();
-        match jikan_response {
-            JikanResponses::Success(value) => Ok(value.data),
-            JikanResponses::Fail(_) => Err(Error::BadRequest {
-                url: "https://api.jikan.moe/v4/anime/".to_string(),
-                status_code: axum::http::StatusCode::TOO_MANY_REQUESTS,
-            }),
-        }
-    } else {
-        Err(Error::BadRequest {
-            url: "https://api.jikan.moe/v4/anime/".to_string(),
-            status_code: axum::http::StatusCode::TOO_MANY_REQUESTS,
-        })
-    }
-}
-
 impl Database {
     pub async fn find_most_likely_anime(
         &self,
@@ -186,7 +163,7 @@ impl Database {
                 .unwrap();
 
             let found_anime = FrontendAnimeEntry::from_anisongs(&possible_anime.iter().map(|a| a).collect()).await.unwrap();
-            
+
             let miss = SongMiss {
                 song_info: SongInfo::from_track_obj(song),
                 possible_anime: found_anime,

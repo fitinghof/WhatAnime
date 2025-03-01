@@ -3,8 +3,6 @@ use sqlx::FromRow;
 
 use crate::Anilist::types::AnilistID;
 
-
-
 #[derive(FromRow, Serialize, Deserialize)]
 pub struct DBAnime {
     pub ann_id: i32,
@@ -13,34 +11,37 @@ pub struct DBAnime {
     pub index_type: i16,
     pub index_number: i32,
     pub anime_type: i16,
-    pub source: String,
     pub episodes: Option<i32>,
-    pub image_url_jpg_small: String,
-    pub image_url_jpg_normal: String,
-    pub image_url_jpg_big: String,
-    pub image_url_webp_small: String,
-    pub image_url_webp_normal: String,
-    pub image_url_webp_big: String,
 
-    pub youtube_id: Option<String>,
-    pub url: Option<String>,
-    pub embed_url: Option<String>,
-    pub image_url: Option<String>,
-    pub small_image_url: Option<String>,
-    pub medium_image_url: Option<String>,
-    pub large_image_url: Option<String>,
-    pub maximum_image_url: Option<String>,
+    // linked_ids
     pub mal_id: Option<i32>,
     pub anilist_id: Option<AnilistID>,
     pub anidb_id: Option<i32>,
     pub kitsu_id: Option<i32>,
-    pub year: Option<i32>,
 
-    pub studios: Vec<i32>,
-    pub producers: Vec<i32>,
-    pub genres: Vec<i32>,
-    pub themes: Vec<i32>,
-    pub score: f32,
+    pub release_year: Option<i32>,
+    pub release_season: Option<i16>,
+
+    pub mean_score: Option<i32>,
+
+    pub banner_image: Option<String>,
+
+    pub cover_image_color: Option<String>,
+    pub cover_image_medium: Option<String>,
+    pub cover_image_large: Option<String>,
+    pub cover_image_extra_large: Option<String>,
+
+    pub media_format: Option<i16>,
+    pub genres: Option<Vec<String>>,
+    pub source: Option<String>,
+    pub studio_ids: Option<Vec<i32>>,
+    pub studio_names: Option<Vec<String>>,
+    pub studio_urls: Option<Vec<String>>,
+    pub tag_ids: Option<Vec<i32>>,
+    pub tag_names: Option<Vec<String>>,
+    pub trailer_id: Option<String>,
+    pub trailer_site: Option<String>,
+    pub thumbnail: Option<String>,
 
     // Song info
     pub spotify_id: String,
