@@ -203,7 +203,7 @@ impl Database {
         .bind(info.trailer.images.large_image_url) // Option<String>
         .bind(info.trailer.images.maximum_image_url) // Option<String>
         .bind(anisong_anime.linked_ids.myanimelist) // Option<i32>
-        .bind(anisong_anime.linked_ids.anilist) // Option<i32>
+        .bind(anisong_anime.linked_ids.anilist.map(|id| id.0)) // Option<i32>
         .bind(anisong_anime.linked_ids.anidb) // Option<i32>
         .bind(anisong_anime.linked_ids.kitsu) // Option<i32>
         .bind(info.year) // Option<i32>

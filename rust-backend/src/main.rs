@@ -5,6 +5,7 @@ mod routes;
 mod spotify;
 mod types;
 mod database;
+mod Anilist;
 
 use anisong::AnisongClient;
 use axum::routing::post;

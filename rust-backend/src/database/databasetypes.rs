@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
+use crate::Anilist::types::AnilistID;
+
 
 
 #[derive(FromRow, Serialize, Deserialize)]
@@ -29,7 +31,7 @@ pub struct DBAnime {
     pub large_image_url: Option<String>,
     pub maximum_image_url: Option<String>,
     pub mal_id: Option<i32>,
-    pub anilist_id: Option<i32>,
+    pub anilist_id: Option<AnilistID>,
     pub anidb_id: Option<i32>,
     pub kitsu_id: Option<i32>,
     pub year: Option<i32>,

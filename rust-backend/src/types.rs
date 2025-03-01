@@ -1,6 +1,12 @@
 use std::fmt::format;
 
-use crate::{anisong::{self, Anime, AnimeListLinks}, database::{databasetypes::DBAnime, find_anime_no_db::fetch_jikan }, spotify::responses::TrackObject, Error, Result};
+use crate::{
+    Anilist::{Media, types::ImageURL},
+    Error, Result,
+    anisong::{self, Anime, AnimeListLinks},
+    database::{databasetypes::DBAnime, find_anime_no_db::fetch_jikan},
+    spotify::responses::TrackObject,
+};
 use axum::response::IntoResponse;
 use futures::future::join_all;
 use itertools::Itertools;
@@ -19,7 +25,11 @@ impl SongInfo {
     pub fn from_track_obj(track_object: &TrackObject) -> Self {
         Self {
             title: track_object.name.clone(),
-            artists: track_object.artists.iter().map(|a| a.name.clone()).collect(),
+            artists: track_object
+                .artists
+                .iter()
+                .map(|a| a.name.clone())
+                .collect(),
             album_picture_url: track_object.album.images[0].url.clone(),
             spotify_id: track_object.id.clone(),
         }
@@ -64,7 +74,7 @@ impl AnimeType {
             2 => Ok(Self::OVA),
             3 => Ok(Self::ONA),
             4 => Ok(Self::Special),
-            _ => Err(Error::ParseError(discriminator.to_string()))
+            _ => Err(Error::ParseError(discriminator.to_string())),
         }
     }
 }
@@ -101,16 +111,15 @@ impl AnimeTrackIndex {
             | AnimeTrackIndex::Ending(val) => *val,
         }
     }
-    pub fn from_db(discriminator: i16, value:i32) -> Result<Self> {
+    pub fn from_db(discriminator: i16, value: i32) -> Result<Self> {
         match discriminator {
             0 => Ok(AnimeTrackIndex::Opening(value)),
             1 => Ok(AnimeTrackIndex::Insert(value)),
             2 => Ok(AnimeTrackIndex::Ending(value)),
-            _ => Err(Error::ParseError(format!("{}:{}", discriminator, value)))
+            _ => Err(Error::ParseError(format!("{}:{}", discriminator, value))),
         }
     }
 }
-
 
 #[derive(Serialize)]
 #[repr(u8)]
@@ -172,7 +181,7 @@ impl AnimeIndex {
             4 => Ok(AnimeIndex::TVSpecial(value)),
             5 => Ok(AnimeIndex::Special(value)),
             6 => Ok(AnimeIndex::MusicVideo(value)),
-            _ => Err(Error::ParseError(format!("{}:{}", discriminator, value)))
+            _ => Err(Error::ParseError(format!("{}:{}", discriminator, value))),
         }
     }
 }
@@ -184,7 +193,7 @@ pub struct FrontendAnimeEntry {
     pub anime_index: AnimeIndex,
     pub track_index: AnimeTrackIndex,
     pub anime_type: Option<AnimeType>,
-    pub image_url: Option<String>,
+    pub image_url: Option<ImageURL>,
     pub linked_ids: anisong::AnimeListLinks,
 
     pub song_name: String,
@@ -204,12 +213,20 @@ impl FrontendAnimeEntry {
             anime_index: AnimeIndex::from_str(&anisong_anime.animeCategory).unwrap(),
             track_index: AnimeTrackIndex::from_str(&anisong_anime.songType).unwrap(),
             anime_type: anime_type,
-            image_url,
+            image_url: if image_url.is_some() {
+                Some(ImageURL::from_str(&image_url.unwrap()))
+            } else {
+                None
+            },
             linked_ids: anisong_anime.linked_ids.clone(),
 
             song_name: anisong_anime.songName.clone(),
             artist_ids: anisong_anime.artists.iter().map(|a| a.id.clone()).collect(),
-            artist_names: anisong_anime.artists.iter().map(|a| a.names[0].clone()).collect(),
+            artist_names: anisong_anime
+                .artists
+                .iter()
+                .map(|a| a.names[0].clone())
+                .collect(),
         })
     }
     pub fn from_db(db_anime: &DBAnime) -> Self {
@@ -217,9 +234,13 @@ impl FrontendAnimeEntry {
             title: db_anime.title_eng.clone(),
             title_japanese: db_anime.title_jpn.clone(),
             anime_index: AnimeIndex::from_db(db_anime.index_type, db_anime.index_number).unwrap(),
-            track_index: AnimeTrackIndex::from_db(db_anime.track_index_type, db_anime.track_index_number).unwrap(),
+            track_index: AnimeTrackIndex::from_db(
+                db_anime.track_index_type,
+                db_anime.track_index_number,
+            )
+            .unwrap(),
             anime_type: AnimeType::from_db(db_anime.anime_type).ok(),
-            image_url: Some(db_anime.image_url_webp_normal.clone()),
+            image_url: Some(ImageURL::from_str(&db_anime.image_url_webp_normal)),
             linked_ids: AnimeListLinks {
                 myanimelist: db_anime.mal_id,
                 anidb: db_anime.anidb_id,
@@ -232,7 +253,7 @@ impl FrontendAnimeEntry {
         }
     }
 
-    pub async fn from_anisong(anisong: &Anime) -> Result<Self>{
+    pub async fn from_anisong(anisong: &Anime) -> Result<Self> {
         let mut image_url = None;
         if anisong.linked_ids.myanimelist.is_some() {
             image_url = fetch_jikan(anisong.linked_ids.myanimelist.unwrap())
@@ -244,13 +265,74 @@ impl FrontendAnimeEntry {
     }
 
     pub async fn from_anisongs(anisongs: &Vec<&Anime>) -> Result<Vec<FrontendAnimeEntry>> {
-        let mut future_anime = Vec::with_capacity(anisongs.len());
-        for anime in anisongs {
-            future_anime.push(FrontendAnimeEntry::from_anisong(&anime));
-        }
-        Ok(join_all(future_anime).await.into_iter().map(|a| a.unwrap()).collect())
-    }
+        let mut owned_anisongs: Vec<&Anime> = anisongs
+            .iter()
+            .filter(|&&a| a.linked_ids.anilist.is_some())
+            .map(|&a| a)
+            .collect();
+        let mut anilist_animes = Media::fetch_many(
+            owned_anisongs
+                .iter()
+                .map(|a| a.linked_ids.anilist.unwrap())
+                .collect(),
+        )
+        .await
+        .unwrap();
 
+        owned_anisongs.sort_by_key(|a| a.linked_ids.anilist);
+        anilist_animes.sort_by(|a, b| a.id.cmp(&b.id));
+
+        let mut anisong_index = 0;
+        let mut anilist_index = 0;
+        let mut frontend_animes = Vec::with_capacity(anilist_animes.len());
+
+        while anisong_index < owned_anisongs.len() && anilist_index < anilist_animes.len() {
+            let anime_type = match &owned_anisongs[anisong_index].animeType {
+                Some(s) => AnimeType::from_str(s).ok(),
+                None => None,
+            };
+            if owned_anisongs[anisong_index].linked_ids.anilist.unwrap()
+                == anilist_animes[anilist_index].id
+            {
+                let entry = FrontendAnimeEntry {
+                    title: owned_anisongs[anisong_index].animeENName.clone(),
+                    title_japanese: owned_anisongs[anisong_index].animeJPName.clone(),
+                    anime_index: AnimeIndex::from_str(&owned_anisongs[anisong_index].animeCategory)
+                        .unwrap(),
+                    track_index: AnimeTrackIndex::from_str(&owned_anisongs[anisong_index].songType)
+                        .unwrap(),
+                    anime_type: anime_type,
+                    image_url: anilist_animes[anilist_index]
+                        .cover_image
+                        .as_ref()
+                        .map(|a| a.medium.clone())
+                        .flatten(),
+                    linked_ids: owned_anisongs[anisong_index].linked_ids.clone(),
+                    song_name: owned_anisongs[anisong_index].songName.clone(),
+                    artist_ids: owned_anisongs[anisong_index]
+                        .artists
+                        .iter()
+                        .map(|a| a.id)
+                        .collect(),
+                    artist_names: owned_anisongs[anisong_index]
+                        .artists
+                        .iter()
+                        .map(|a| a.names[0].clone())
+                        .collect(),
+                };
+                frontend_animes.push(entry);
+                anisong_index += 1;
+                anilist_index += 1;
+            } else if owned_anisongs[anisong_index].linked_ids.anilist.unwrap()
+                < anilist_animes[anilist_index].id
+            {
+                anisong_index += 1;
+            } else {
+                anilist_index += 1;
+            }
+        }
+        Ok(frontend_animes)
+    }
 }
 
 #[derive(Serialize)]

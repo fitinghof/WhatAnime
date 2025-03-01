@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{japanese_processing::{process_possible_japanese, process_similarity}, spotify::responses::TrackObject, Error, Result};
+use crate::{japanese_processing::{process_possible_japanese, process_similarity}, spotify::responses::TrackObject, Anilist::types::AnilistID, Error, Result};
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -96,10 +96,11 @@ impl AnisongClient {
         } else {
             let status = response.status();
             println!("{}", response.text().await?);
-            Err(Error::BadRequest {
-                url: Self::SEARCH_REQUEST_URL.to_string(),
-                status_code: status,
-            })
+            Ok(vec![])
+            // Err(Error::BadRequest {
+            //     url: Self::SEARCH_REQUEST_URL.to_string(),
+            //     status_code: status,
+            // })
         }
     }
 
@@ -295,7 +296,7 @@ pub struct Artist {
 pub struct AnimeListLinks {
     pub myanimelist: Option<i32>,
     pub anidb: Option<i32>,
-    pub anilist: Option<i32>,
+    pub anilist: Option<AnilistID>,
     pub kitsu: Option<i32>,
 }
 
