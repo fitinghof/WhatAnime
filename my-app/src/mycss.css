@@ -1,29 +1,44 @@
 /* General Styles */
 body {
-    background-color: #333333; /* Set background color */
-    color: #f0f0f0; /* Set text color */
+    background-color: #333333;
+    /* Set background color */
+    color: #f0f0f0;
+    /* Set text color */
     font-family: Arial, sans-serif;
 }
 
 h1 {
-    color: #ff6347; /* Set text color for h1 */
-}
-
-.preserve-whitespace {
-    white-space: pre-wrap; /* Preserve newlines and spaces */
+    color: #ff6347;
+    /* Set text color for h1 */
 }
 
 h3 {
-    color: #4682b4; /* Set text color for h3 */
+    color: #4682b4;
+    /* Set text color for h3 */
 }
 
 a {
     color: #4682b4;
 }
 
+.song-title,
+.separator,
+.anime-button,
+.toggle-extra-info-button,
+.anime-title {
+    color: #ec9b22;
+}
+
+.artist-name,
+.anime-info {
+    color: #e4f3ff;
+}
+
 .favicon {
-    border-radius: 50%; /* Makes it round */
-    width: 35px; /* Adjust as needed */
+    border-radius: 50%;
+    /* Makes it round */
+    width: 35px;
+    /* Adjust as needed */
     height: 35px;
 }
 
@@ -46,7 +61,8 @@ a {
     padding: 20px;
     border-radius: 12px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 90%;  /* Adjust to fit the screen width */
+    width: 90%;
+    /* Adjust to fit the screen width */
 }
 
 .album-art {
@@ -61,20 +77,21 @@ a {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 0px; /* Ensure no gap between title and artist names */
+    gap: 0px;
+    /* Ensure no gap between title and artist names */
 }
 
 .song-title {
     font-size: 16px;
     font-weight: bold;
-    color: #d47508;
-    margin: 0; /* Remove default margin */
+    margin: 0;
+    /* Remove default margin */
 }
 
 .artist-name {
     font-size: 14px;
-    color: #b3b3b3;
-    margin: 0; /* Remove default margin */
+    margin: 0;
+    /* Remove default margin */
 }
 
 /* Anime Section */
@@ -86,7 +103,6 @@ a {
     margin: 10px 0;
     font-size: 16px;
     font-weight: bold;
-    color: #d47508;
 }
 
 .separator::before,
@@ -96,14 +112,6 @@ a {
     height: 2px;
     background-color: #555;
     margin: 0 10px;
-}
-
-.info-text {
-    text-align: center;
-    font-size: 18px;
-    font-weight: bold;
-    color: #f0f0f0;
-    margin-bottom: 15px;
 }
 
 /* Anime List */
@@ -119,6 +127,9 @@ a {
 }
 
 .anime-item {
+    position: relative;
+    /* Ensure the pseudo-element is positioned correctly */
+
     display: flex;
     align-items: center;
     background-color: #252525;
@@ -126,8 +137,18 @@ a {
     padding: 20px;
     border-radius: 12px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 90%;  /* Adjust width */
-    flex-direction: row; /* Make sure the layout is horizontal */
+    width: 90%;
+    /* Adjust width */
+    flex-direction: row;
+    /* Make sure the layout is horizontal */
+
+    background-size: cover;
+    /* Ensure the image covers the container */
+    background-position: center;
+    /* Center the background image */
+    background-repeat: no-repeat;
+    /* Prevent the image from repeating */
+    overflow: hidden;
 }
 
 .anime-art {
@@ -150,14 +171,12 @@ a {
 .anime-title {
     font-size: 16px;
     font-weight: bold;
-    color: #d47508;
 }
 
 .anime-season,
 .anime-opening,
 .anime-type {
     font-size: 14px;
-    color: #b3b3b3;
 }
 
 .anime-season {
@@ -167,13 +186,11 @@ a {
 .anime-song-title {
     font-size: 14px;
     margin-top: 5px;
-    color: #b3b3b3;
 }
 
 .anime-artists-names {
     font-size: 14px;
     margin-top: 5px;
-    color: #b3b3b3;
 }
 
 .anime-type {
@@ -186,22 +203,26 @@ a {
 
 .anime-episodes {
     font-size: 14px;
-    color: #b3b3b3;
 }
 
 .anime-links {
     margin-top: 10px;
     font-size: 14px;
     color: #f0f0f0;
-    display: flex;  /* Use flexbox for row layout */
-    gap: 15px;  /* Space out the links */
-    flex-wrap: wrap;  /* Allow wrapping if the links are too wide */
+    display: flex;
+    /* Use flexbox for row layout */
+    gap: 15px;
+    /* Space out the links */
+    flex-wrap: wrap;
+    /* Allow wrapping if the links are too wide */
 }
 
 .anime-links a {
-    color: #4682b4;  /* Blue color for links */
+    color: #4682b4;
+    /* Blue color for links */
     text-decoration: none;
-    white-space: nowrap;  /* Prevent text from breaking within links */
+    white-space: nowrap;
+    /* Prevent text from breaking within links */
 }
 
 .anime-links a:hover {
@@ -218,12 +239,12 @@ a {
     right: 0;
     background: #2d2e30;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.233);
-    color: #d47508;
     border: none;
     border-radius: 30%;
     cursor: pointer;
     order: 2;
-    min-width: 90px;  /* Adjust as needed */
+    min-width: 90px;
+    /* Adjust as needed */
     /*min-height: 50px;  Adjust as needed */
 }
 
@@ -239,7 +260,6 @@ a {
     right: 0;
     background: #2d2e30;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.233);
-    color: #d47508;
     border: none;
     border-radius: 10%;
     cursor: pointer;

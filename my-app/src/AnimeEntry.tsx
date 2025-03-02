@@ -52,6 +52,7 @@ export interface AnimeInfo {
   track_index: AnimeTrackIndex;
   anime_type: AnimeType;
   image_url?: string;
+  banner_url?: string;
   linked_ids: LinkedIds;
 
   song_name: string,
@@ -70,43 +71,43 @@ function linked_ids(anime_ids: LinkedIds) {
   if (anime_ids === undefined) return null;
   return (
     <div className="anime-links">
-            {anime_ids.myanimelist && (
-              <a
-                href={`https://myanimelist.net/anime/${anime_ids.myanimelist}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                MAL
-              </a>
-            )}
-            {anime_ids.anilist && (
-              <a
-                href={`https://anilist.co/anime/${anime_ids.anilist}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Anilist
-              </a>
-            )}
-            {anime_ids.anidb && (
-              <a
-                href={`https://anidb.net/anime/${anime_ids.anidb}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                AniDB
-              </a>
-            )}
-            {anime_ids.kitsu && (
-              <a
-                href={`https://kitsu.io/anime/${anime_ids.kitsu}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Kitsu
-              </a>
-            )}
-          </div>
+      {anime_ids.myanimelist && (
+        <a
+          href={`https://myanimelist.net/anime/${anime_ids.myanimelist}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          MAL
+        </a>
+      )}
+      {anime_ids.anilist && (
+        <a
+          href={`https://anilist.co/anime/${anime_ids.anilist}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Anilist
+        </a>
+      )}
+      {anime_ids.anidb && (
+        <a
+          href={`https://anidb.net/anime/${anime_ids.anidb}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          AniDB
+        </a>
+      )}
+      {anime_ids.kitsu && (
+        <a
+          href={`https://kitsu.io/anime/${anime_ids.kitsu}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Kitsu
+        </a>
+      )}
+    </div>
   );
 }
 
@@ -140,7 +141,7 @@ const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime, show_confirm_button, spo
   let animeSongNumber = parseTrackIndex(anime.track_index);
   let animeIndex = parseAnimeIndex(anime.anime_index);
   return (
-    <div className="anime-item">
+    <div className="anime-item" style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(${anime.banner_url ?? "/amq_icon_green.svg"})` }}>
       <img
         src={anime.image_url ?? "/amq_icon_green.svg"}
         alt="Anime art"

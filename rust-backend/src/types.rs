@@ -2,7 +2,7 @@ use std::fmt::format;
 
 use crate::{
     Error, Result,
-    anilist::{Media, types::ImageURL},
+    anilist::{self, Media, types::ImageURL},
     anisong::{self, Anime, AnimeListLinks},
     database::databasetypes::DBAnime,
     spotify::responses::TrackObject,
@@ -194,6 +194,7 @@ pub struct FrontendAnimeEntry {
     pub track_index: AnimeTrackIndex,
     pub anime_type: Option<AnimeType>,
     pub image_url: Option<ImageURL>,
+    pub banner_url: Option<ImageURL>,
     pub linked_ids: anisong::AnimeListLinks,
 
     pub song_name: String,
@@ -201,19 +202,23 @@ pub struct FrontendAnimeEntry {
     pub artist_names: Vec<String>,
 }
 impl FrontendAnimeEntry {
-    pub fn new(anisong_anime: &anisong::Anime, image_url: Option<ImageURL>) -> Result<Self> {
-        let anime_type = if anisong_anime.animeType.is_some() {
-            AnimeType::from_str(&anisong_anime.animeType.as_ref().unwrap()).ok()
-        } else {
-            None
-        };
+    pub fn new(anisong_anime: &anisong::Anime, anilist_media: Option<&Media>) -> Result<Self> {
+        let anime_type = anisong_anime
+            .animeType
+            .as_ref()
+            .map(|t| AnimeType::from_str(&t).ok())
+            .flatten();
         Ok(Self {
             title: anisong_anime.animeENName.clone(),
             title_japanese: anisong_anime.animeJPName.clone(),
             anime_index: AnimeIndex::from_str(&anisong_anime.animeCategory).unwrap(),
             track_index: AnimeTrackIndex::from_str(&anisong_anime.songType).unwrap(),
             anime_type: anime_type,
-            image_url,
+            image_url: anilist_media
+                .map(|a| a.cover_image.as_ref().map(|a| a.medium.clone()))
+                .flatten()
+                .flatten(),
+            banner_url: anilist_media.map(|a| a.banner_image.clone()).flatten(),
             linked_ids: anisong_anime.linked_ids.clone(),
 
             song_name: anisong_anime.songName.clone(),
@@ -236,13 +241,14 @@ impl FrontendAnimeEntry {
             )
             .unwrap(),
             anime_type: AnimeType::from_db(db_anime.anime_type).ok(),
-            image_url: if db_anime.cover_image_medium.is_some() {
-                Some(ImageURL::from_str(
-                    &db_anime.cover_image_medium.as_ref().unwrap(),
-                ))
-            } else {
-                None
-            },
+            image_url: db_anime
+                .cover_image_medium
+                .as_ref()
+                .map(|a| ImageURL::from_str(&a)),
+            banner_url: db_anime
+                .banner_image
+                .as_ref()
+                .map(|a| ImageURL::from_str(&a)),
             linked_ids: AnimeListLinks {
                 myanimelist: db_anime.mal_id,
                 anidb: db_anime.anidb_id,
@@ -256,16 +262,12 @@ impl FrontendAnimeEntry {
     }
 
     pub async fn from_anisong(anisong: &Anime) -> Result<Self> {
-        let mut image_url = None;
-        if anisong.linked_ids.anilist.is_some() {
-            image_url = Media::fetch_one(anisong.linked_ids.anilist.unwrap())
-                .await
-                .unwrap()
-                .cover_image
-                .map(|a| a.medium)
-                .flatten();
-        }
-        Ok(Self::new(&anisong, image_url).unwrap())
+        let media = if anisong.linked_ids.anilist.is_some() {
+            Media::fetch_one(anisong.linked_ids.anilist.unwrap()).await
+        } else {
+            None
+        };
+        Ok(Self::new(&anisong, media.as_ref()).unwrap())
     }
 
     pub async fn from_anisongs(anisongs: &Vec<&Anime>) -> Result<Vec<FrontendAnimeEntry>> {
@@ -291,39 +293,14 @@ impl FrontendAnimeEntry {
         let mut frontend_animes = Vec::with_capacity(anilist_animes.len());
 
         while anisong_index < owned_anisongs.len() && anilist_index < anilist_animes.len() {
-            let anime_type = match &owned_anisongs[anisong_index].animeType {
-                Some(s) => AnimeType::from_str(s).ok(),
-                None => None,
-            };
             if owned_anisongs[anisong_index].linked_ids.anilist.unwrap()
                 == anilist_animes[anilist_index].id
             {
-                let entry = FrontendAnimeEntry {
-                    title: owned_anisongs[anisong_index].animeENName.clone(),
-                    title_japanese: owned_anisongs[anisong_index].animeJPName.clone(),
-                    anime_index: AnimeIndex::from_str(&owned_anisongs[anisong_index].animeCategory)
-                        .unwrap(),
-                    track_index: AnimeTrackIndex::from_str(&owned_anisongs[anisong_index].songType)
-                        .unwrap(),
-                    anime_type: anime_type,
-                    image_url: anilist_animes[anilist_index]
-                        .cover_image
-                        .as_ref()
-                        .map(|a| a.medium.clone())
-                        .flatten(),
-                    linked_ids: owned_anisongs[anisong_index].linked_ids.clone(),
-                    song_name: owned_anisongs[anisong_index].songName.clone(),
-                    artist_ids: owned_anisongs[anisong_index]
-                        .artists
-                        .iter()
-                        .map(|a| a.id)
-                        .collect(),
-                    artist_names: owned_anisongs[anisong_index]
-                        .artists
-                        .iter()
-                        .map(|a| a.names[0].clone())
-                        .collect(),
-                };
+                let entry = FrontendAnimeEntry::new(
+                    owned_anisongs[anisong_index],
+                    Some(&anilist_animes[anilist_index]),
+                )
+                .unwrap();
                 frontend_animes.push(entry);
                 anisong_index += 1;
             } else if owned_anisongs[anisong_index].linked_ids.anilist.unwrap()
