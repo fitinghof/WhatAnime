@@ -1,10 +1,14 @@
 use std::collections::HashSet;
 
-use crate::{japanese_processing::{process_possible_japanese, process_similarity}, spotify::responses::TrackObject, anilist::types::AnilistID, Error, Result};
+use crate::{
+    Error, Result,
+    anilist::types::AnilistID,
+    japanese_processing::{process_possible_japanese, process_similarity},
+    spotify::responses::TrackObject,
+};
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-
 
 pub struct AnisongClient {
     client: Client,
@@ -39,11 +43,11 @@ impl AnisongClient {
         };
 
         let response = self
-        .client
-        .post(Self::ARTIST_ID_SEARCH_REQUEST_URL)
-        .json(&search)
-        .send()
-        .await?;
+            .client
+            .post(Self::ARTIST_ID_SEARCH_REQUEST_URL)
+            .json(&search)
+            .send()
+            .await?;
 
         if response.status().is_success() {
             Ok(response.json().await?)
@@ -55,11 +59,25 @@ impl AnisongClient {
         }
     }
 
-    pub async fn get_exact_song(&self, artist_ids: Vec<i32>, song_title: String) -> Result<Vec<Anime>> {
-        Ok(self.get_animes_by_artists_ids(artist_ids).await.unwrap().into_iter().filter(|a| a.songName == song_title).collect::<Vec<Anime>>())
+    pub async fn get_exact_song(
+        &self,
+        artist_ids: Vec<i32>,
+        song_title: String,
+    ) -> Result<Vec<Anime>> {
+        Ok(self
+            .get_animes_by_artists_ids(artist_ids)
+            .await
+            .unwrap()
+            .into_iter()
+            .filter(|a| a.songName == song_title)
+            .collect::<Vec<Anime>>())
     }
 
-    pub async fn get_animes_by_song_title(&self, title: String, partial: bool) -> Result<Vec<Anime>> {
+    pub async fn get_animes_by_song_title(
+        &self,
+        title: String,
+        partial: bool,
+    ) -> Result<Vec<Anime>> {
         let search = SearchRequest {
             artist_search_filter: None,
             anime_search_filter: None,
@@ -147,10 +165,7 @@ impl AnisongClient {
             })
         }
     }
-    pub async fn find_songs_by_artists(
-        &self,
-        song: &TrackObject,
-    ) -> Result<Vec<(Anime, f32)>> {
+    pub async fn find_songs_by_artists(&self, song: &TrackObject) -> Result<Vec<(Anime, f32)>> {
         let artists = &song.artists;
         let mut anime_song_entries = Vec::new();
 

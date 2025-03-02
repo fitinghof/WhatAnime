@@ -1,10 +1,10 @@
 use std::fmt::format;
 
 use crate::{
-    anilist::{Media, types::ImageURL},
     Error, Result,
+    anilist::{Media, types::ImageURL},
     anisong::{self, Anime, AnimeListLinks},
-    database::{databasetypes::DBAnime},
+    database::databasetypes::DBAnime,
     spotify::responses::TrackObject,
 };
 use axum::response::IntoResponse;
@@ -237,7 +237,9 @@ impl FrontendAnimeEntry {
             .unwrap(),
             anime_type: AnimeType::from_db(db_anime.anime_type).ok(),
             image_url: if db_anime.cover_image_medium.is_some() {
-                Some(ImageURL::from_str(&db_anime.cover_image_medium.as_ref().unwrap()))
+                Some(ImageURL::from_str(
+                    &db_anime.cover_image_medium.as_ref().unwrap(),
+                ))
             } else {
                 None
             },
@@ -259,7 +261,8 @@ impl FrontendAnimeEntry {
             image_url = Media::fetch_one(anisong.linked_ids.anilist.unwrap())
                 .await
                 .unwrap()
-                .cover_image.map(|a| a.medium)
+                .cover_image
+                .map(|a| a.medium)
                 .flatten();
         }
         Ok(Self::new(&anisong, image_url).unwrap())
@@ -323,7 +326,6 @@ impl FrontendAnimeEntry {
                 };
                 frontend_animes.push(entry);
                 anisong_index += 1;
-                anilist_index += 1;
             } else if owned_anisongs[anisong_index].linked_ids.anilist.unwrap()
                 < anilist_animes[anilist_index].id
             {

@@ -1,15 +1,15 @@
 pub mod databasetypes;
 pub mod find_anime_no_db;
 
+use crate::anilist::types::{Genre, TagID, URL};
+use crate::anilist::{self, Media};
 use crate::anisong::{Anime, AnisongClient, Artist};
 use crate::japanese_processing::process_similarity;
 use crate::spotify::responses::TrackObject;
 use crate::types::{
-    AnimeIndex, AnimeTrackIndex, AnimeType, FrontendAnimeEntry, NewSong, SongHit,
-    SongInfo, SongMiss,
+    AnimeIndex, AnimeTrackIndex, AnimeType, FrontendAnimeEntry, NewSong, SongHit, SongInfo,
+    SongMiss,
 };
-use crate::anilist::types::{Genre, TagID, URL};
-use crate::anilist::{self, Media};
 use crate::{Error, Result};
 use databasetypes::{DBAnime, DBArtist};
 use itertools::Itertools;
@@ -179,7 +179,8 @@ impl Database {
                 $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42
             )
             ON CONFLICT DO NOTHING
-        "#)
+        "#,
+        )
         .bind(anisong_anime.annId) // i32
         .bind(anisong_anime.animeENName) // String
         .bind(anisong_anime.animeJPName) // String
@@ -192,15 +193,41 @@ impl Database {
         .bind(info.cover_image.as_ref().and_then(|c| c.color.clone())) // Option<String>
         .bind(info.cover_image.as_ref().and_then(|c| c.medium.clone())) // Option<String>
         .bind(info.cover_image.as_ref().and_then(|c| c.large.clone())) // Option<String>
-        .bind(info.cover_image.as_ref().and_then(|c| c.extra_large.clone())) // Option<String>
+        .bind(
+            info.cover_image
+                .as_ref()
+                .and_then(|c| c.extra_large.clone()),
+        ) // Option<String>
         .bind(info.format.map(|f| f as i16)) // Option<MediaFormat>
         .bind(info.genres.as_ref()) // Option<Vec<Genre>>
         .bind(info.source.as_ref()) // Option<String>
-        .bind(info.studios.as_ref().map(|s| s.nodes.iter().map(|s| s.id).collect::<Vec<i32>>())) // Option<Vec<i32>>
-        .bind(info.studios.as_ref().map(|s| s.nodes.iter().map(|s| s.name.clone()).collect::<Vec<Option<String>>>()))
-        .bind(info.studios.as_ref().map(|s| s.nodes.iter().map(|s| s.site_url.clone()).collect::<Vec<Option<URL>>>()))
-        .bind(info.tags.as_ref().map(|t| t.iter().map(|a| a.id.clone()).collect::<Vec<TagID>>())) // Option<Vec<i32>>
-        .bind(info.tags.as_ref().map(|t| t.iter().map(|t| t.name.clone()).collect::<Vec<Option<String>>>()))
+        .bind(
+            info.studios
+                .as_ref()
+                .map(|s| s.nodes.iter().map(|s| s.id).collect::<Vec<i32>>()),
+        ) // Option<Vec<i32>>
+        .bind(info.studios.as_ref().map(|s| {
+            s.nodes
+                .iter()
+                .map(|s| s.name.clone())
+                .collect::<Vec<Option<String>>>()
+        }))
+        .bind(info.studios.as_ref().map(|s| {
+            s.nodes
+                .iter()
+                .map(|s| s.site_url.clone())
+                .collect::<Vec<Option<URL>>>()
+        }))
+        .bind(
+            info.tags
+                .as_ref()
+                .map(|t| t.iter().map(|a| a.id.clone()).collect::<Vec<TagID>>()),
+        ) // Option<Vec<i32>>
+        .bind(info.tags.as_ref().map(|t| {
+            t.iter()
+                .map(|t| t.name.clone())
+                .collect::<Vec<Option<String>>>()
+        }))
         .bind(info.trailer.as_ref().map(|t| t.id.clone())) // Option<String>
         .bind(info.trailer.as_ref().map(|t| t.site.clone())) // Option<String>
         .bind(info.trailer.as_ref().map(|t| t.thumbnail.clone())) // Option<String>
@@ -211,11 +238,41 @@ impl Database {
         .bind(spotify_track_object.id.clone())
         .bind(anisong_anime.annSongId)
         .bind(anisong_anime.songName.clone())
-        .bind(spotify_track_object.artists.iter().map(|a| a.id.clone()).collect::<Vec<String>>())
-        .bind(anisong_anime.artists.iter().map(|a| a.names[0].clone()).collect::<Vec<String>>())
-        .bind(anisong_anime.artists.iter().map(|a| a.id.clone()).collect::<Vec<i32>>())
-        .bind(anisong_anime.composers.iter().map(|a| a.id).collect::<Vec<i32>>())
-        .bind(anisong_anime.arrangers.iter().map(|a| a.id).collect::<Vec<i32>>())
+        .bind(
+            spotify_track_object
+                .artists
+                .iter()
+                .map(|a| a.id.clone())
+                .collect::<Vec<String>>(),
+        )
+        .bind(
+            anisong_anime
+                .artists
+                .iter()
+                .map(|a| a.names[0].clone())
+                .collect::<Vec<String>>(),
+        )
+        .bind(
+            anisong_anime
+                .artists
+                .iter()
+                .map(|a| a.id.clone())
+                .collect::<Vec<i32>>(),
+        )
+        .bind(
+            anisong_anime
+                .composers
+                .iter()
+                .map(|a| a.id)
+                .collect::<Vec<i32>>(),
+        )
+        .bind(
+            anisong_anime
+                .arrangers
+                .iter()
+                .map(|a| a.id)
+                .collect::<Vec<i32>>(),
+        )
         .bind(track_index.discriminant() as i16)
         .bind(track_index.value())
         .bind(anisong_anime.linked_ids.myanimelist)
@@ -323,8 +380,14 @@ impl Database {
                     Ok(())
                 }
                 None => {
-                    println!("Failed to fetch anilist info for {}", anisong_anime.animeENName);
-                    Err(Error::BadRequest { url: "Anilist and whatever their URL is".to_string(), status_code: StatusCode::BAD_REQUEST })
+                    println!(
+                        "Failed to fetch anilist info for {}",
+                        anisong_anime.animeENName
+                    );
+                    Err(Error::BadRequest {
+                        url: "Anilist and whatever their URL is".to_string(),
+                        status_code: StatusCode::BAD_REQUEST,
+                    })
                 }
             },
             None => Ok(()),
@@ -390,7 +453,10 @@ impl Database {
                 .filter(|a| anime_set.insert((a.annId, a.annSongId)))
                 .collect();
 
-            let mut return_more_by_artists = FrontendAnimeEntry::from_anisongs(&anisong_more_by_artists.iter().collect()).await.unwrap();
+            let mut return_more_by_artists =
+                FrontendAnimeEntry::from_anisongs(&anisong_more_by_artists.iter().collect())
+                    .await
+                    .unwrap();
 
             for anime in more_by_artists_db {
                 return_more_by_artists.push(FrontendAnimeEntry::from_db(&anime));
@@ -473,9 +539,17 @@ impl Database {
                             }
                         }
 
-                        let mut anime_info = FrontendAnimeEntry::from_anisongs(&animehit.iter().map(|a|a.0).collect()).await.unwrap();
+                        let mut anime_info = FrontendAnimeEntry::from_anisongs(
+                            &animehit.iter().map(|a| a.0).collect(),
+                        )
+                        .await
+                        .unwrap();
 
-                        let mut more_with_artist = FrontendAnimeEntry::from_anisongs(&more_by_artists.iter().map(|a|a.0).collect()).await.unwrap();
+                        let mut more_with_artist = FrontendAnimeEntry::from_anisongs(
+                            &more_by_artists.iter().map(|a| a.0).collect(),
+                        )
+                        .await
+                        .unwrap();
 
                         anime_info.sort_by(|a, b| a.title.cmp(&b.title));
                         more_with_artist.sort_by(|a, b| a.title.cmp(&b.title));
@@ -487,7 +561,10 @@ impl Database {
                             certainty: 100,
                         }));
                     } else {
-                        let mut possible_anime = FrontendAnimeEntry::from_anisongs(&anisong_anime.iter().collect()).await.unwrap();
+                        let mut possible_anime =
+                            FrontendAnimeEntry::from_anisongs(&anisong_anime.iter().collect())
+                                .await
+                                .unwrap();
 
                         possible_anime.sort_by(|a, b| a.title.cmp(&b.title));
 

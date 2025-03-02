@@ -7,8 +7,8 @@ mod routes;
 mod spotify;
 mod types;
 
-use anilist::types::{AnilistID, TagID, URL};
 use anilist::Media;
+use anilist::types::{AnilistID, TagID, URL};
 use anisong::AnisongClient;
 use axum::http::Method;
 use axum::http::header::{ACCEPT, AUTHORIZATION};

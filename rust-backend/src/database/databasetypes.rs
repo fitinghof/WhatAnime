@@ -15,7 +15,6 @@ pub struct DBAnime {
 
     pub mean_score: Option<i32>,
 
-
     pub banner_image: Option<String>,
 
     pub cover_image_color: Option<String>,
@@ -56,7 +55,6 @@ pub struct DBAnime {
     pub anilist_id: Option<AnilistID>,
     pub anidb_id: Option<i32>,
     pub kitsu_id: Option<i32>,
-
 }
 
 #[derive(FromRow, Serialize, Deserialize)]
