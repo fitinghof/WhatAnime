@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-use crate::Anilist::types::AnilistID;
+use crate::anilist::types::AnilistID;
 
 #[derive(FromRow, Serialize, Deserialize)]
 pub struct DBAnime {
@@ -13,16 +13,8 @@ pub struct DBAnime {
     pub anime_type: i16,
     pub episodes: Option<i32>,
 
-    // linked_ids
-    pub mal_id: Option<i32>,
-    pub anilist_id: Option<AnilistID>,
-    pub anidb_id: Option<i32>,
-    pub kitsu_id: Option<i32>,
-
-    pub release_year: Option<i32>,
-    pub release_season: Option<i16>,
-
     pub mean_score: Option<i32>,
+
 
     pub banner_image: Option<String>,
 
@@ -43,6 +35,9 @@ pub struct DBAnime {
     pub trailer_site: Option<String>,
     pub thumbnail: Option<String>,
 
+    pub release_year: Option<i32>,
+    pub release_season: Option<i16>,
+
     // Song info
     pub spotify_id: String,
     pub ann_song_id: i32,
@@ -56,6 +51,12 @@ pub struct DBAnime {
 
     pub track_index_type: i16,
     pub track_index_number: i32,
+    // linked_ids
+    pub mal_id: Option<i32>,
+    pub anilist_id: Option<AnilistID>,
+    pub anidb_id: Option<i32>,
+    pub kitsu_id: Option<i32>,
+
 }
 
 #[derive(FromRow, Serialize, Deserialize)]

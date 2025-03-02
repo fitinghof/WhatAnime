@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use axum::{extract::{Query, State}, response::{IntoResponse, Response}, Json};
+use axum::{extract::State, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
-use crate::{spotify::api::get_user, Error, Result};
+use crate::{spotify::api::get_user, Result};
 
 use crate::{spotify::api::get_song, AppState};
 

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{japanese_processing::{process_possible_japanese, process_similarity}, spotify::responses::TrackObject, Anilist::types::AnilistID, Error, Result};
+use crate::{japanese_processing::{process_possible_japanese, process_similarity}, spotify::responses::TrackObject, anilist::types::AnilistID, Error, Result};
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};

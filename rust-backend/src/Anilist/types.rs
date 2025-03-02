@@ -68,26 +68,26 @@ pub enum MediaFormat {
 #[sqlx(transparent)]
 pub struct Genre(String);
 
-#[derive(Debug, Deserialize, Serialize, TryFromPrimitive, Clone)]
-#[repr(i16)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum MediaSource {
-    Original,
-    Manga,
-    LightNovel,
-    VisualNovel,
-    VideoGame,
-    Other,
-    Novel,
-    Doujinshi,
-    Anime,
-    WebNovel,
-    LiveAction,
-    Game,
-    Comic,
-    MultimediaProject,
-    PictureBook,
-}
+// #[derive(Debug, Deserialize, Serialize, TryFromPrimitive, Clone)]
+// #[repr(i16)]
+// #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+// pub enum MediaSource {
+//     Original,
+//     Manga,
+//     LightNovel,
+//     VisualNovel,
+//     VideoGame,
+//     Other,
+//     Novel,
+//     Doujinshi,
+//     Anime,
+//     WebNovel,
+//     LiveAction,
+//     Game,
+//     Comic,
+//     MultimediaProject,
+//     PictureBook,
+// }
 
 #[derive(Debug, Deserialize, Serialize, TryFromPrimitive, Clone)]
 #[repr(i16)]
@@ -150,7 +150,7 @@ pub struct Media {
     pub cover_image: Option<CoverImage>,
     pub format: Option<MediaFormat>,
     pub genres: Option<Vec<Genre>>,
-    pub source: Option<MediaSource>,
+    pub source: Option<String>,
     pub studios: Option<StudioConnection>,
     pub tags: Option<Vec<MediaTag>>,
     pub trailer: Option<MediaTrailer>,

@@ -1,11 +1,9 @@
-use crate::types::ContentUpdate;
 use crate::{AppState, Error, Result};
 
-use super::responses::{self, CurrentlyPlayingResponse, CurrentlyPlayingResponses, SpotifyToken, SpotifyUser, TrackObject};
-use axum::response::IntoResponse;
+use super::responses::{CurrentlyPlayingResponses, SpotifyToken, SpotifyUser, TrackObject};
 use base64::{engine, Engine};
 use reqwest::header::{HeaderMap, HeaderValue};
-use reqwest::{Client, StatusCode};
+use reqwest::Client;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};

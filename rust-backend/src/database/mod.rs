@@ -5,15 +5,16 @@ use crate::anisong::{Anime, AnisongClient, Artist};
 use crate::japanese_processing::process_similarity;
 use crate::spotify::responses::TrackObject;
 use crate::types::{
-    AnimeIndex, AnimeTrackIndex, AnimeType, FrontendAnimeEntry, JikanAnime, NewSong, SongHit,
+    AnimeIndex, AnimeTrackIndex, AnimeType, FrontendAnimeEntry, NewSong, SongHit,
     SongInfo, SongMiss,
 };
-use crate::Anilist::types::{Genre, TagID, URL};
-use crate::Anilist::{self, Media};
+use crate::anilist::types::{Genre, TagID, URL};
+use crate::anilist::{self, Media};
 use crate::{Error, Result};
 use databasetypes::{DBAnime, DBArtist};
 use itertools::Itertools;
 use reqwest::StatusCode;
+use serde::Serialize;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
 use std::collections::HashSet;
@@ -134,7 +135,6 @@ impl Database {
                 index_type,
                 index_number,
                 anime_type,
-                source,
                 episodes,
                 mean_score,
                 banner_image,
@@ -156,12 +156,27 @@ impl Database {
                 release_season,
                 release_year,
                 from_user_name,
-                from_user_mail
+                from_user_mail,
+                spotify_id,
+                ann_song_id,
+                song_name,
+                spotify_artist_ids,
+                artist_names,
+                artists_ann_id,
+                composers_ann_id,
+                arrangers_ann_id,
+                track_index_type,
+                track_index_number,
+                mal_id,
+                anilist_id,
+                anidb_id,
+                kitsu_id
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                 $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-                $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31
+                $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
+                $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42
             )
             ON CONFLICT DO NOTHING
         "#)
@@ -171,7 +186,6 @@ impl Database {
         .bind(anime_index.discriminant() as i16) // i16
         .bind(anime_index.value()) // i32
         .bind(anime_type as i16) // i16
-        .bind(info.source.as_ref().map(|s| s.clone() as i16)) // Option<String>
         .bind(info.episodes) // Option<i32>
         .bind(info.mean_score) // i32
         .bind(info.banner_image.as_ref()) // Option<String>
@@ -181,7 +195,7 @@ impl Database {
         .bind(info.cover_image.as_ref().and_then(|c| c.extra_large.clone())) // Option<String>
         .bind(info.format.map(|f| f as i16)) // Option<MediaFormat>
         .bind(info.genres.as_ref()) // Option<Vec<Genre>>
-        .bind(info.source.as_ref().map(|a| a.clone() as i16)) // Option<MediaSource>
+        .bind(info.source.as_ref()) // Option<String>
         .bind(info.studios.as_ref().map(|s| s.nodes.iter().map(|s| s.id).collect::<Vec<i32>>())) // Option<Vec<i32>>
         .bind(info.studios.as_ref().map(|s| s.nodes.iter().map(|s| s.name.clone()).collect::<Vec<Option<String>>>()))
         .bind(info.studios.as_ref().map(|s| s.nodes.iter().map(|s| s.site_url.clone()).collect::<Vec<Option<URL>>>()))
@@ -194,6 +208,20 @@ impl Database {
         .bind(info.season_year) // Option<i32>
         .bind(from_user_name) // Option<String>
         .bind(from_user_mail) // Option<String>
+        .bind(spotify_track_object.id.clone())
+        .bind(anisong_anime.annSongId)
+        .bind(anisong_anime.songName.clone())
+        .bind(spotify_track_object.artists.iter().map(|a| a.id.clone()).collect::<Vec<String>>())
+        .bind(anisong_anime.artists.iter().map(|a| a.names[0].clone()).collect::<Vec<String>>())
+        .bind(anisong_anime.artists.iter().map(|a| a.id.clone()).collect::<Vec<i32>>())
+        .bind(anisong_anime.composers.iter().map(|a| a.id).collect::<Vec<i32>>())
+        .bind(anisong_anime.arrangers.iter().map(|a| a.id).collect::<Vec<i32>>())
+        .bind(track_index.discriminant() as i16)
+        .bind(track_index.value())
+        .bind(anisong_anime.linked_ids.myanimelist)
+        .bind(anisong_anime.linked_ids.anilist)
+        .bind(anisong_anime.linked_ids.anidb)
+        .bind(anisong_anime.linked_ids.kitsu)
         .execute(&self.pool)
         .await
         .unwrap();

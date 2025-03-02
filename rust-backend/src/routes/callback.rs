@@ -8,7 +8,7 @@ use axum::http::HeaderMap;
 use axum::{
     extract::{Query, State},
     http::HeaderValue,
-    response::{IntoResponse, Redirect, Response},
+    response::Redirect,
 };
 use base64::{Engine, engine};
 use reqwest::Client;

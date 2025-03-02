@@ -1,4 +1,4 @@
-mod Anilist;
+mod anilist;
 mod anisong;
 mod database;
 mod error;
@@ -7,8 +7,8 @@ mod routes;
 mod spotify;
 mod types;
 
-use Anilist::Media;
-use Anilist::types::{AnilistID, TagID, URL};
+use anilist::types::{AnilistID, TagID, URL};
+use anilist::Media;
 use anisong::AnisongClient;
 use axum::http::Method;
 use axum::http::header::{ACCEPT, AUTHORIZATION};
@@ -47,155 +47,6 @@ impl AppState {
         };
     }
 }
-struct SimpleEntry {
-    spotify_id: String,
-    anilist_id: Option<i32>,
-}
-async fn migrate_database(database: &Database) {
-    let mut entries = sqlx::query_as!(SimpleEntry, "SELECT spotify_id, anilist_id FROM animes")
-        .fetch_all(&database.pool)
-        .await
-        .unwrap();
-
-    entries.retain(|a| a.anilist_id.is_some());
-
-    let mut anilist_entries = Media::fetch_many(
-        entries
-            .iter()
-            .map(|a| AnilistID::from(a.anilist_id.unwrap()))
-            .collect(),
-    )
-    .await
-    .unwrap();
-
-    anilist_entries.sort_by(|a, b| a.id.cmp(&b.id));
-    entries.sort_by(|a, b| a.anilist_id.cmp(&b.anilist_id));
-
-    let mut simple_entry_index = 0;
-    let mut anilist_index = 0;
-
-    while simple_entry_index < entries.len() && anilist_index < anilist_entries.len() {
-        if AnilistID::from(entries[simple_entry_index].anilist_id.unwrap())
-            == anilist_entries[anilist_index].id
-        {
-            sqlx::query(
-                r#"
-            UPDATE animes
-            SET
-                mean_score = $1,
-                banner_image = $2,
-                cover_image_color = $3,
-                cover_image_medium = $4,
-                cover_image_large = $5,
-                cover_image_extra_large = $6,
-                media_format = $7,
-                genres = $8,
-                source = $9,
-                studio_ids = $10,
-                studio_names = $11,
-                studio_urls = $12,
-                tag_ids = $13,
-                tag_names = $14,
-                trailer_id = $15,
-                trailer_site = $16,
-                thumbnail = $17,
-                release_season = $18
-            WHERE anilist_id = $19
-        "#,
-            )
-            .bind(anilist_entries[anilist_index].mean_score)
-            .bind(anilist_entries[anilist_index].banner_image.clone())
-            .bind(
-                anilist_entries[anilist_index]
-                    .cover_image
-                    .as_ref()
-                    .map(|a| a.color.clone()),
-            )
-            .bind(
-                anilist_entries[anilist_index]
-                    .cover_image
-                    .as_ref()
-                    .map(|a| a.medium.clone()),
-            )
-            .bind(
-                anilist_entries[anilist_index]
-                    .cover_image
-                    .as_ref()
-                    .map(|a| a.large.clone()),
-            )
-            .bind(
-                anilist_entries[anilist_index]
-                    .cover_image
-                    .as_ref()
-                    .map(|a| a.extra_large.clone()),
-            )
-            .bind(anilist_entries[anilist_index].format.as_ref().map(|a| a.clone() as i16))
-            .bind(anilist_entries[anilist_index].genres.as_ref())
-            .bind(anilist_entries[anilist_index].source.as_ref().map(|a| a.clone() as i16))
-            .bind(
-                anilist_entries[anilist_index]
-                    .studios
-                    .as_ref()
-                    .map(|a| a.nodes.iter().map(|a| a.id).collect::<Vec<i32>>()),
-            )
-            .bind(anilist_entries[anilist_index].studios.as_ref().map(|a| {
-                a.nodes
-                    .iter()
-                    .map(|a| a.name.clone())
-                    .collect::<Vec<Option<String>>>()
-            }))
-            .bind(anilist_entries[anilist_index].studios.as_ref().map(|a| {
-                a.nodes
-                    .iter()
-                    .map(|a| a.site_url.clone())
-                    .collect::<Vec<Option<URL>>>()
-            }))
-            .bind(
-                anilist_entries[anilist_index]
-                    .tags
-                    .as_ref()
-                    .map(|a| a.iter().map(|a| a.id.clone()).collect::<Vec<TagID>>()),
-            )
-            .bind(anilist_entries[anilist_index].tags.as_ref().map(|a| {
-                a.iter()
-                    .map(|a| a.name.clone())
-                    .collect::<Vec<Option<String>>>()
-            }))
-            .bind(
-                anilist_entries[anilist_index]
-                    .trailer
-                    .as_ref()
-                    .map(|a| a.id.clone()),
-            )
-            .bind(
-                anilist_entries[anilist_index]
-                    .trailer
-                    .as_ref()
-                    .map(|a| a.site.clone()),
-            )
-            .bind(
-                anilist_entries[anilist_index]
-                    .trailer
-                    .as_ref()
-                    .map(|a| a.thumbnail.clone()),
-            )
-            .bind(anilist_entries[anilist_index].season.as_ref().map(|a| a.clone() as i16))
-            .bind(anilist_entries[anilist_index].id)
-            .execute(&database.pool)
-            .await
-            .unwrap(); // 'id' is the identifier for the specific anime entry you're updating
-
-            simple_entry_index += 1;
-            anilist_index += 1;
-        } else if AnilistID::from(entries[simple_entry_index].anilist_id.unwrap())
-            < anilist_entries[anilist_index].id
-        {
-            simple_entry_index += 1;
-        } else {
-            anilist_index += 1;
-        }
-    }
-}
 
 #[tokio::main]
 async fn main() {
@@ -210,7 +61,7 @@ async fn main() {
 
     let shared_state = Arc::new(AppState::load().await);
 
-    //migrate_database(&shared_state.database).await;
+    // migrate_database(&shared_state.database).await;
 
     let allowed_origins = [
         "http://localhost:5173".parse::<HeaderValue>().unwrap(),

@@ -1,7 +1,7 @@
 use std::fmt::format;
 
 use crate::{
-    Anilist::{Media, types::ImageURL},
+    anilist::{Media, types::ImageURL},
     Error, Result,
     anisong::{self, Anime, AnimeListLinks},
     database::{databasetypes::DBAnime},
