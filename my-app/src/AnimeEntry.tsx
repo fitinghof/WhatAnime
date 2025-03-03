@@ -54,6 +54,7 @@ export interface AnimeInfo {
   image_url?: string;
   banner_url?: string;
   linked_ids: LinkedIds;
+  score?: number;
 
   song_name: string,
   artist_ids: Array<number>,
@@ -142,11 +143,13 @@ const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime, show_confirm_button, spo
   let animeIndex = parseAnimeIndex(anime.anime_index);
   return (
     <div className="anime-item" style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(${anime.banner_url ?? "/amq_icon_green.svg"})` }}>
-      <img
-        src={anime.image_url ?? "/amq_icon_green.svg"}
-        alt="Anime art"
-        className="anime-art"
-      />
+      <div className="left-info-container">
+        <img
+          src={anime.image_url ?? "/amq_icon_green.svg"}
+          alt="Anime art"
+          className="anime-art"
+        />
+      </div>
       <div className="anime-info">
         <div className="anime-title">
           {anime.title || "Unknown Anime"}
@@ -182,16 +185,22 @@ const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime, show_confirm_button, spo
           {showMoreInfo ? "Hide Info" : "Show More Info"}
         </button>
       </div>
-
-      {show_confirm_button && (
-        <button className="anime-button" onClick={handleConfirmClick}>
-          <p>
-            Confirm<br></br> Anime
-          </p>
-        </button>
-      )}
-
-
+      <div className="right-info-container">
+        <div className="anime-score">
+          <div className="score-text">
+            {
+              anime.score ?? ""
+            }
+          </div>
+        </div>
+        {show_confirm_button && showMoreInfo && (
+          <button className="bind-anime-button" onClick={handleConfirmClick}>
+            <p>
+              Confirm<br></br> Anime
+            </p>
+          </button>
+        )}
+      </div>
     </div>
   );
 };

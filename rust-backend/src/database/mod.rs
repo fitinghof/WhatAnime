@@ -473,7 +473,6 @@ impl Database {
             }))
         } else {
             // --------------- GET BY ARTISTS ---------------
-
             let artists_db = self
                 .get_artists_spotify_id(
                     &spotify_track_object
@@ -558,7 +557,7 @@ impl Database {
                             song_info: SongInfo::from_track_obj(spotify_track_object),
                             anime_info: anime_info,
                             more_with_artist: more_with_artist,
-                            certainty: 100,
+                            certainty: best_score as i32,
                         }));
                     } else {
                         let mut possible_anime =

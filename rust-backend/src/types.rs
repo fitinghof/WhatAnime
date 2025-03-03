@@ -1,18 +1,12 @@
-use std::fmt::format;
-
 use crate::{
     Error, Result,
-    anilist::{self, Media, types::ImageURL},
-    anisong::{self, Anime, AnimeListLinks},
+    anilist::{Media, types::ImageURL},
+    anisong::{Anime, AnimeListLinks},
     database::databasetypes::DBAnime,
     spotify::responses::TrackObject,
 };
 use axum::response::IntoResponse;
-use futures::future::join_all;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use serde_json::to_string;
-
 #[derive(Serialize)]
 pub struct SongInfo {
     pub title: String,
@@ -195,14 +189,15 @@ pub struct FrontendAnimeEntry {
     pub anime_type: Option<AnimeType>,
     pub image_url: Option<ImageURL>,
     pub banner_url: Option<ImageURL>,
-    pub linked_ids: anisong::AnimeListLinks,
+    pub linked_ids: AnimeListLinks,
+    pub score: Option<i32>,
 
     pub song_name: String,
     pub artist_ids: Vec<i32>,
     pub artist_names: Vec<String>,
 }
 impl FrontendAnimeEntry {
-    pub fn new(anisong_anime: &anisong::Anime, anilist_media: Option<&Media>) -> Result<Self> {
+    pub fn new(anisong_anime: &Anime, anilist_media: Option<&Media>) -> Result<Self> {
         let anime_type = anisong_anime
             .animeType
             .as_ref()
@@ -228,6 +223,7 @@ impl FrontendAnimeEntry {
                 .iter()
                 .map(|a| a.names[0].clone())
                 .collect(),
+            score: anilist_media.map(|a| a.mean_score),
         })
     }
     pub fn from_db(db_anime: &DBAnime) -> Self {
@@ -258,6 +254,7 @@ impl FrontendAnimeEntry {
             song_name: db_anime.song_name.clone(),
             artist_ids: db_anime.artists_ann_id.clone(),
             artist_names: db_anime.artist_names.iter().map(|a| a.clone()).collect(),
+            score: db_anime.mean_score,
         }
     }
 
@@ -271,11 +268,9 @@ impl FrontendAnimeEntry {
     }
 
     pub async fn from_anisongs(anisongs: &Vec<&Anime>) -> Result<Vec<FrontendAnimeEntry>> {
-        let mut owned_anisongs: Vec<&Anime> = anisongs
+        let (mut owned_anisongs, mut no_anilist_ids): (Vec<&Anime>, Vec<&Anime>) = anisongs
             .iter()
-            .filter(|&&a| a.linked_ids.anilist.is_some())
-            .map(|&a| a)
-            .collect();
+            .partition(|&&a| a.linked_ids.anilist.is_some());
         let mut anilist_animes = Media::fetch_many(
             owned_anisongs
                 .iter()
@@ -306,11 +301,16 @@ impl FrontendAnimeEntry {
             } else if owned_anisongs[anisong_index].linked_ids.anilist.unwrap()
                 < anilist_animes[anilist_index].id
             {
+                let entry = FrontendAnimeEntry::new(owned_anisongs[anisong_index], None).unwrap();
+                frontend_animes.push(entry);
                 anisong_index += 1;
             } else {
                 anilist_index += 1;
             }
         }
+        no_anilist_ids
+            .iter()
+            .for_each(|a| frontend_animes.push(FrontendAnimeEntry::new(a, None).unwrap()));
         Ok(frontend_animes)
     }
 }
