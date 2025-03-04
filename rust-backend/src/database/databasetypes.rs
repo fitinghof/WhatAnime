@@ -55,6 +55,8 @@ pub struct DBAnime {
     pub anilist_id: Option<AnilistID>,
     pub anidb_id: Option<i32>,
     pub kitsu_id: Option<i32>,
+
+    pub song_group_id: i32,
 }
 
 #[derive(FromRow, Serialize, Deserialize)]
@@ -64,4 +66,17 @@ pub struct DBArtist {
     pub names: Vec<String>,
     pub groups_ids: Option<Vec<i32>>,
     pub members: Option<Vec<i32>>,
+}
+
+#[derive(FromRow, Serialize, Deserialize)]
+pub struct SongGroup {
+    pub group_id: i32,
+    pub song_title: String,
+    pub artist_ids: Vec<i32>,
+}
+
+#[derive(FromRow, Serialize, Deserialize)]
+pub struct SongGroupLink {
+    pub spotify_id: String,
+    pub group_id: i32,
 }

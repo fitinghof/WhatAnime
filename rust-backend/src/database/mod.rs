@@ -11,7 +11,7 @@ use crate::types::{
     SongMiss,
 };
 use crate::{Error, Result};
-use databasetypes::{DBAnime, DBArtist};
+use databasetypes::{DBAnime, DBArtist, SongGroup, SongGroupLink};
 use itertools::Itertools;
 use reqwest::StatusCode;
 use serde::Serialize;
@@ -92,12 +92,26 @@ impl Database {
     }
 
     async fn get_anime_by_spotify_id(&self, spotify_id: &String) -> Result<Vec<DBAnime>> {
-        Ok(
-            sqlx::query_as::<Postgres, DBAnime>("SELECT * FROM animes WHERE spotify_id = $1")
-                .bind(spotify_id)
+        let group_id = sqlx::query_as!(
+            SongGroupLink,
+            "SELECT * FROM song_group_links WHERE spotify_id = $1",
+            spotify_id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .unwrap();
+        if group_id.is_some() {
+            Ok(
+                sqlx::query_as::<Postgres, DBAnime>(
+                    "SELECT * FROM animes WHERE song_group_id = $1",
+                )
+                .bind(&group_id.unwrap().group_id)
                 .fetch_all(&self.pool)
                 .await?,
-        )
+            )
+        } else {
+            Ok(vec![])
+        }
     }
 
     async fn get_animes_by_artists_ids_(&self, spotify_ids: &Vec<String>) -> Result<Vec<DBAnime>> {
@@ -123,6 +137,13 @@ impl Database {
         from_user_name: Option<String>,
         from_user_mail: Option<String>,
     ) -> Result<()> {
+        let group_id = self
+            .add_song_group_link(
+                &spotify_track_object.id,
+                &anisong_anime.songName,
+                &anisong_anime.artists.iter().map(|a| a.id.clone()).collect(),
+            )
+            .await;
         let anime_index = AnimeIndex::from_str(&anisong_anime.animeCategory).unwrap();
         let anime_type = AnimeType::from_str(&anisong_anime.animeType.unwrap()).unwrap();
         let track_index = AnimeTrackIndex::from_str(&anisong_anime.songType).unwrap();
@@ -170,13 +191,14 @@ impl Database {
                 mal_id,
                 anilist_id,
                 anidb_id,
-                kitsu_id
+                kitsu_id,
+                song_group_id
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                 $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
                 $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
-                $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42
+                $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43
             )
             ON CONFLICT DO NOTHING
         "#,
@@ -235,7 +257,7 @@ impl Database {
         .bind(info.season_year) // Option<i32>
         .bind(from_user_name) // Option<String>
         .bind(from_user_mail) // Option<String>
-        .bind(spotify_track_object.id.clone())
+        .bind("") // Should be removed completly by next database migration, replaced by song group id.
         .bind(anisong_anime.annSongId)
         .bind(anisong_anime.songName.clone())
         .bind(
@@ -279,6 +301,7 @@ impl Database {
         .bind(anisong_anime.linked_ids.anilist)
         .bind(anisong_anime.linked_ids.anidb)
         .bind(anisong_anime.linked_ids.kitsu)
+        .bind(group_id)
         .execute(&self.pool)
         .await
         .unwrap();
@@ -317,6 +340,51 @@ impl Database {
         .execute(&self.pool)
         .await
         .unwrap();
+    }
+
+    pub async fn add_song_group_link(
+        &self,
+        spotify_id: &String,
+        song_title: &String,
+        artist_ids: &Vec<i32>,
+    ) -> i32 {
+        let song_link = sqlx::query_as!(
+            SongGroupLink,
+            "SELECT * FROM song_group_links WHERE spotify_id = $1",
+            spotify_id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .unwrap();
+        if song_link.is_none() {
+            let song_group = sqlx::query_as!(
+                SongGroup,
+                "SELECT * FROM song_groups WHERE song_title = $1 AND artist_ids = $2",
+                song_title,
+                artist_ids,
+            )
+            .fetch_optional(&self.pool)
+            .await
+            .unwrap();
+            let group_id = if song_group.is_some() {
+                song_group.unwrap().group_id
+            } else {
+                let group_id = sqlx::query!(
+                    "INSERT INTO song_groups (song_title, artist_ids) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING group_id",
+                    song_title,
+                    artist_ids
+                ).fetch_one(&self.pool).await.unwrap();
+                group_id.group_id
+            };
+            let _ = sqlx::query!(
+                "INSERT INTO song_group_links (spotify_id, group_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+                spotify_id,
+                group_id
+            ).execute(&self.pool).await;
+            group_id
+        } else {
+            song_link.unwrap().group_id
+        }
     }
 
     pub async fn try_add_anime_db(
