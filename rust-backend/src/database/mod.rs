@@ -5,7 +5,7 @@ use crate::anilist::types::{Genre, TagID, URL};
 use crate::anilist::{self, Media};
 use crate::anisong::{Anime, AnisongClient, Artist};
 use crate::japanese_processing::process_similarity;
-use crate::spotify::responses::TrackObject;
+use crate::spotify::responses::{SimplifiedArtist, TrackObject};
 use crate::types::{
     AnimeIndex, AnimeTrackIndex, AnimeType, FrontendAnimeEntry, NewSong, SongHit, SongInfo,
     SongMiss,
@@ -410,11 +410,22 @@ impl Database {
         from_user_mail: Option<String>,
     ) -> Result<()> {
         println!(
-            "User {:?}, mail: {:?}, added bind for {}  ---  {}",
+            "User {:?}, mail: {:?}, added bind for {}\nSong: {}  ---  {}\nby: {:?}  ---  {:?}",
             &from_user_name,
             &from_user_mail,
             &anisong_anime.animeENName,
-            &spotify_track_object.name
+            &spotify_track_object.name,
+            &anisong_anime.songName,
+            &spotify_track_object
+                .artists
+                .iter()
+                .map(|a| &a.name)
+                .collect::<Vec<&String>>(),
+            anisong_anime
+                .artists
+                .iter()
+                .map(|a| &a.names[0])
+                .collect::<Vec<&String>>(),
         );
         return self
             .try_add_anime(
@@ -477,7 +488,7 @@ impl Database {
             let mut anime_set = HashSet::new();
 
             anime_result.iter().for_each(|a| {
-                anime_set.insert((a.ann_id, a.ann_song_id));
+                anime_set.insert((a.ann_song_id));
             });
 
             let more_by_artists_db: Vec<DBAnime> = self
@@ -485,7 +496,7 @@ impl Database {
                 .await
                 .unwrap()
                 .into_iter()
-                .filter(|a| anime_set.insert((a.ann_id, a.ann_song_id)))
+                .filter(|a| anime_set.insert(a.ann_song_id))
                 .collect();
 
             let anisong_hit: Vec<Anime> = anisong_db
@@ -496,7 +507,7 @@ impl Database {
                 .await
                 .unwrap()
                 .into_iter()
-                .filter(|a| anime_set.insert((a.annId, a.annSongId)))
+                .filter(|a| anime_set.insert(a.annSongId))
                 .collect();
 
             let mut return_anime_hit = Vec::new();
@@ -509,6 +520,7 @@ impl Database {
                     return_anime_hit.push(FrontendAnimeEntry::from_anisong(&anime).await.unwrap());
                 }
             }
+
             anime_result
                 .iter()
                 .for_each(|a| return_anime_hit.push(FrontendAnimeEntry::from_db(a)));
@@ -518,7 +530,7 @@ impl Database {
                 .await
                 .unwrap()
                 .into_iter()
-                .filter(|a| anime_set.insert((a.annId, a.annSongId)))
+                .filter(|a| anime_set.insert(a.annSongId))
                 .collect();
 
             let mut return_more_by_artists =
