@@ -23,8 +23,9 @@ pub fn process_possible_japanese(japanese: &str) -> String {
     }
 }
 
-fn normalize_text(text: &str) -> String {
-    let new_text = text.to_lowercase()
+pub fn normalize_text(text: &str) -> String {
+    let new_text = text
+        .to_lowercase()
         .replace(|c: char| !c.is_alphanumeric() && c != ' ', "");
     return deunicode::deunicode(&new_text);
 }
@@ -54,17 +55,16 @@ pub fn process_similarity(japanese_text: &str, romaji_text: &str) -> f32 {
         //     .replace("r", "l")
         //     .replace("b", "v");
 
-        let fuzz_value_consonants = fuzz::ratio(
-            &normalized_japanese,
-            &normalized_romaji,
-        );
+        let fuzz_value_consonants = fuzz::ratio(&normalized_japanese, &normalized_romaji);
         let consonant_weight = 0.9;
         let full_weight = 1.0 - consonant_weight;
 
-        let value = (fuzz_value_consonants as f32 * consonant_weight + fuzz_value_full as f32 * full_weight) as  f32;
+        let value = (fuzz_value_consonants as f32 * consonant_weight
+            + fuzz_value_full as f32 * full_weight) as f32;
         value
     } else {
-        let value = fuzz::ratio(&normalize_text(japanese_text), &normalize_text(romaji_text)) as f32;
+        let value =
+            fuzz::ratio(&normalize_text(japanese_text), &normalize_text(romaji_text)) as f32;
         value
     }
 }

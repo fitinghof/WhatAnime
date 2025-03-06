@@ -1,11 +1,11 @@
 pub mod databasetypes;
 pub mod find_anime_no_db;
 
-use crate::anilist::types::{Genre, TagID, URL};
-use crate::anilist::{self, Media};
+use crate::anilist::Media;
+use crate::anilist::types::{TagID, URL};
 use crate::anisong::{Anime, AnisongClient, Artist};
 use crate::japanese_processing::process_similarity;
-use crate::spotify::responses::{SimplifiedArtist, TrackObject};
+use crate::spotify::responses::TrackObject;
 use crate::types::{
     AnimeIndex, AnimeTrackIndex, AnimeType, FrontendAnimeEntry, NewSong, SongHit, SongInfo,
     SongMiss,
@@ -14,7 +14,6 @@ use crate::{Error, Result};
 use databasetypes::{DBAnime, DBArtist, SongGroup, SongGroupLink};
 use itertools::Itertools;
 use reqwest::StatusCode;
-use serde::Serialize;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
 use std::collections::HashSet;
@@ -565,6 +564,7 @@ impl Database {
                 .unwrap();
 
             if artists_db.len() > 0 {
+                let some: Vec<i32> = artists_db.iter().map(|a| a.ann_id).collect();
                 let anisong_anime = anisong_db
                     .get_animes_by_artists_ids(artists_db.iter().map(|a| a.ann_id).collect())
                     .await

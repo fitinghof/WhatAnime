@@ -1,13 +1,12 @@
 use super::Database;
 use crate::anisong::{Anime, AnisongClient};
-use crate::japanese_processing::process_possible_japanese;
+use crate::japanese_processing::{normalize_text, process_possible_japanese};
 use crate::spotify::responses::TrackObject;
 use crate::types::{
-    self, FrontendAnimeEntry, JikanAnime, JikanResponses, NewSong, SongHit,
-    SongInfo, SongMiss,
+    self, FrontendAnimeEntry, JikanAnime, JikanResponses, NewSong, SongHit, SongInfo, SongMiss,
 };
-use futures::future::join_all;
 use crate::{Error, Result};
+use futures::future::join_all;
 
 use fuzzywuzzy::fuzz;
 use itertools::Itertools;
@@ -53,8 +52,12 @@ impl Database {
                     .intersperse(" ".to_string()) // Insert space between names
                     .collect();
 
-                let score =
-                    fuzz::token_set_ratio(&spotify_artists, &artists_string, false, true) as f32;
+                let score = fuzz::token_set_ratio(
+                    &normalize_text(&spotify_artists),
+                    &normalize_text(&artists_string),
+                    false,
+                    true,
+                ) as f32;
 
                 weighed_anime.push((anime, score));
             }
@@ -91,8 +94,16 @@ impl Database {
                         }
                     }
 
-                    let mut anime_hit_info_vec = FrontendAnimeEntry::from_anisongs(&animehit_evaluated.iter().map(|a| &a.0).collect()).await.unwrap();
-                    let mut anime_more_by_artist_info_vec = FrontendAnimeEntry::from_anisongs(&more_by_artists.iter().map(|a| &a.0).collect()).await.unwrap();
+                    let mut anime_hit_info_vec = FrontendAnimeEntry::from_anisongs(
+                        &animehit_evaluated.iter().map(|a| &a.0).collect(),
+                    )
+                    .await
+                    .unwrap();
+                    let mut anime_more_by_artist_info_vec = FrontendAnimeEntry::from_anisongs(
+                        &more_by_artists.iter().map(|a| &a.0).collect(),
+                    )
+                    .await
+                    .unwrap();
 
                     anime_hit_info_vec.sort_by(|a, b| a.title.cmp(&b.title));
                     anime_more_by_artist_info_vec.sort_by(|a, b| a.title.cmp(&b.title));
@@ -116,7 +127,11 @@ impl Database {
                         }
                     }
 
-                    let mut anime_hit_info_vec = FrontendAnimeEntry::from_anisongs(&anime_hit_info.iter().map(|a| &a.0).collect()).await.unwrap();
+                    let mut anime_hit_info_vec = FrontendAnimeEntry::from_anisongs(
+                        &anime_hit_info.iter().map(|a| &a.0).collect(),
+                    )
+                    .await
+                    .unwrap();
 
                     let anime_more_by_artist_info = anisong_db
                         .get_animes_by_artists_ids(
@@ -129,7 +144,11 @@ impl Database {
                         )
                         .await?;
 
-                    let mut anime_more_by_artists_info_vec = FrontendAnimeEntry::from_anisongs(&anime_more_by_artist_info.iter().map(|a| a).collect()).await.unwrap();
+                    let mut anime_more_by_artists_info_vec = FrontendAnimeEntry::from_anisongs(
+                        &anime_more_by_artist_info.iter().map(|a| a).collect(),
+                    )
+                    .await
+                    .unwrap();
 
                     anime_hit_info_vec.sort_by(|a, b| a.title.cmp(&b.title));
                     anime_more_by_artists_info_vec.sort_by(|a, b| a.title.cmp(&b.title));
@@ -146,8 +165,11 @@ impl Database {
 
                 return Ok(types::NewSong::Hit(hit));
             } else {
-
-                let possible_anime = FrontendAnimeEntry::from_anisongs(&weighed_anime.iter().map(|a| &a.0).collect()).await.unwrap();
+                let possible_anime = FrontendAnimeEntry::from_anisongs(
+                    &weighed_anime.iter().map(|a| &a.0).collect(),
+                )
+                .await
+                .unwrap();
 
                 let miss = SongMiss {
                     song_info: SongInfo::from_track_obj(song),
@@ -162,7 +184,10 @@ impl Database {
                 .await
                 .unwrap();
 
-            let found_anime = FrontendAnimeEntry::from_anisongs(&possible_anime.iter().map(|a| a).collect()).await.unwrap();
+            let found_anime =
+                FrontendAnimeEntry::from_anisongs(&possible_anime.iter().map(|a| a).collect())
+                    .await
+                    .unwrap();
 
             let miss = SongMiss {
                 song_info: SongInfo::from_track_obj(song),

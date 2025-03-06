@@ -2,6 +2,7 @@ import requests
 from typing import List, Optional
 from pydantic import BaseModel, Field, TypeAdapter
 
+
 class Search_Filter(BaseModel):
     search: str
     partial_match: Optional[bool] = True
@@ -166,7 +167,11 @@ class Song_Entry(BaseModel):
 
     def __eq__(self, other):
         if isinstance(other, Song_Entry):
-            return self.annId == other.annId and self.annSongId == other.annSongId and self.songType == other.songType
+            return (
+                self.annId == other.annId
+                and self.annSongId == other.annSongId
+                and self.songType == other.songType
+            )
         return False
 
 
@@ -188,11 +193,13 @@ class AnisongDB_Interface:
     def get_exact_song(self, songName, artistIDs: List) -> List[Song_Entry]:
         songlist = self.get_songs_artists(artistIDs, True)
 
-        filteredSonglist = list(filter(lambda a : a.songName == songName, songlist))
+        filteredSonglist = list(filter(lambda a: a.songName == songName, songlist))
 
         return filteredSonglist
 
-    def get_songs_artists(self, artistIDs, everyArtist: bool = False) -> List[Song_Entry]:
+    def get_songs_artists(
+        self, artistIDs, everyArtist: bool = False
+    ) -> List[Song_Entry]:
         songlist: List = []
         if everyArtist:
             search = Artist_ID_Search_Request(
@@ -202,15 +209,21 @@ class AnisongDB_Interface:
             respons: requests.models.Response = requests.post(
                 self._site + "/artist_ids_request", json=search.model_dump()
             )
+            print(f"Response Status Code: {respons.status_code}")
+            print(f"Response Text: {respons.text}")
             songlist = TypeAdapter(List[Song_Entry]).validate_python(respons.json())
         else:
             for artistID in artistIDs:
                 search = Artist_ID_Search_Request(
-                    artist_ids=artistID,
+                    artist_ids=[artistID],
                     max_other_artist=99,
                 )
                 respons: requests.models.Response = requests.post(
                     self._site + "/artist_ids_request", json=search.model_dump()
                 )
-                songlist.extend(TypeAdapter(List[Song_Entry]).validate_python(respons.json()))
+                print(f"Response Status Code: {respons.status_code}")
+                print(f"Response Text: {respons.text}")
+                songlist.extend(
+                    TypeAdapter(List[Song_Entry]).validate_python(respons.json())
+                )
         return list(set(songlist))

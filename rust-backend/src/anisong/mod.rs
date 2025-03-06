@@ -124,19 +124,35 @@ impl AnisongClient {
         }
     }
 
-    pub async fn get_animes_by_artist_name(&self, artist: String) -> Result<Vec<Anime>> {
+    pub async fn get_animes_by_artist_name(
+        &self,
+        artist: Option<&String>,
+        composer: Option<&String>,
+    ) -> Result<Vec<Anime>> {
         let search = SearchRequest {
             anime_search_filter: None,
             song_name_search_filter: None,
-            artist_search_filter: Some(SearchFilter {
-                search: artist,
-                partial_match: false,
-                group_granularity: Some(0),
-                max_other_artist: Some(99),
-                arrangement: Some(true),
-            }),
-            composer_search_filter: None,
-            and_logic: Some(true),
+            artist_search_filter: match artist {
+                Some(name) => Some(SearchFilter {
+                    search: name.clone(),
+                    partial_match: false,
+                    group_granularity: Some(0),
+                    max_other_artist: Some(99),
+                    arrangement: Some(true),
+                }),
+                None => None,
+            },
+            composer_search_filter: match composer {
+                Some(name) => Some(SearchFilter {
+                    search: name.clone(),
+                    partial_match: false,
+                    group_granularity: Some(0),
+                    max_other_artist: Some(99),
+                    arrangement: Some(true),
+                }),
+                None => None,
+            },
+            and_logic: Some(false),
             ignore_duplicate: Some(false),
             opening_filter: Some(true),
             ending_filter: Some(true),
@@ -174,7 +190,7 @@ impl AnisongClient {
         for artist in artists {
             let romanji_artist = process_possible_japanese(&artist.name);
             let songs = self
-                .get_animes_by_artist_name(romanji_artist)
+                .get_animes_by_artist_name(Some(&romanji_artist), Some(&romanji_artist))
                 .await
                 .unwrap();
             anime_song_entries.extend(songs);
@@ -185,12 +201,7 @@ impl AnisongClient {
         let romanji_song_title = process_possible_japanese(&song.name);
         Ok(anime_song_entries
             .into_iter()
-            .filter(|anime| {
-                // if anime.annId.is_none() || anime.annSongId.is_none() {
-                //     println!("Something that should not be None was None : (")
-                // }
-                set.insert((anime.annId, anime.annSongId))
-            })
+            .filter(|anime| set.insert(anime.annSongId))
             .map(|anime| {
                 let score = process_similarity(&romanji_song_title, &anime.songName);
                 (anime, score)

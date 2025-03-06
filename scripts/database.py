@@ -1,5 +1,8 @@
 from pydantic import BaseModel
 from typing import Optional
+import psycopg
+import os
+from dotenv import load_dotenv
 
 
 class DBAnime(BaseModel):
@@ -54,3 +57,10 @@ class SongGroup(BaseModel):
 class SongGroupLink(BaseModel):
     spotify_id: str
     group_id: int
+
+
+class DataBase:
+    def __init__(self):
+        load_dotenv()
+        database_url = os.getenv("DATABASE_URL")
+        self.conn = psycopg.connect(database_url)

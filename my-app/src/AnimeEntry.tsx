@@ -148,6 +148,9 @@ const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime, show_confirm_button, spo
           src={anime.image_url ?? "/amq_icon_green.svg"}
           alt="Anime art"
           className="anime-art"
+          onError={(e) => {
+            e.currentTarget.src = "/amq_icon_green.svg"; // Fallback to SVG
+          }}
         />
       </div>
       <div className="anime-info">
