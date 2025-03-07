@@ -49,16 +49,22 @@ impl AnisongClient {
             .send()
             .await?;
 
-        if response.status().is_success() {
-            Ok(response.json().await?)
-        } else {
-            let status = response.status();
-            println!("{}", response.text().await.unwrap());
-            Err(Error::BadRequest {
-                url: Self::SEARCH_REQUEST_URL.to_string(),
-                status_code: status,
-            })
-        }
+       match response.status() {
+           value if value.is_success() => {
+               Ok(response.json().await?)
+           },
+           value if value == 503 => Ok(vec![])
+           _ => {
+               let status = response.status();
+               println!("{}", response.text().await.unwrap());
+               Err(Error::BadRequest {
+                   url: Self::SEARCH_REQUEST_URL.to_string(),
+                   status_code: status,
+               })
+           }
+       }
+
+        
     }
 
     pub async fn get_exact_song(
