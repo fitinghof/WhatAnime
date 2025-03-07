@@ -488,10 +488,14 @@ impl Database {
         anisong_db: &AnisongClient,
         accuracy_cutoff: f32,
     ) -> Result<NewSong> {
+        // There should be a set to filter out duplicates here
+
         let anime_db = self
             .get_anime_by_spotify_id(&spotify_track_object.id)
             .await
             .unwrap();
+
+        // if 0 implement db search by artist names since we will soon have unlinked entries in the database.
 
         let artists = self
             .get_artists_spotify_id(
@@ -515,6 +519,9 @@ impl Database {
             .await
             .unwrap();
 
+        // if 0 implement db search by artist names since we will soon have unlinked entries in the database.
+
+        // might want to seperate this into it's own functions
         let (anime_anisong, score) = if anime_db.len() > 0 {
             (
                 anisong_db
@@ -545,9 +552,17 @@ impl Database {
                 score,
             )
         } else {
-            // Implement raw search
+            // Implement raw search by both artists first and song title first.
             (vec![], 0.0)
         };
+
+        // Same as above but for more by artists
+
+        // filter our stuff that is already in the database, add what is not in the database to the database
+        // maybe the add to database should also return the DBAnime objects it added?
+        // This way it would be cleaner when we converted it to frontend animes for return.
+
+        // Go through our database entries and see if any are due for an update.
 
         Err(Error::NotImplemented)
     }
