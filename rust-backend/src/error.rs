@@ -2,8 +2,8 @@
 
 use std::fmt::Display;
 
-use axum::response::IntoResponse;
 use axum::http::StatusCode;
+use axum::response::IntoResponse;
 use sqlx::migrate::MigrateError;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -17,7 +17,11 @@ impl IntoResponse for Error {
 pub enum Error {
     BadOAuth,
     NotASong,
-    BadRequest{url: String, status_code: axum::http::StatusCode},
+    NotImplemented,
+    BadRequest {
+        url: String,
+        status_code: axum::http::StatusCode,
+    },
     ReqwestError(reqwest::Error),
     TowerError(tower_sessions::session::Error),
     ParseError(String),

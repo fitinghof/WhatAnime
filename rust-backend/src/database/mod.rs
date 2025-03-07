@@ -113,19 +113,29 @@ impl Database {
         }
     }
 
-    async fn get_animes_by_artists_ids_(&self, spotify_ids: &Vec<String>) -> Result<Vec<DBAnime>> {
+    async fn get_animes_by_artists_ids(&self, spotify_ids: &Vec<String>) -> Result<Vec<DBAnime>> {
+        // Might want to use the jointable, but that would require starting to fill the join table aswell.
+
+        // Ok(sqlx::query_as::<Postgres, DBAnime>(
+        // r#"
+        //     SELECT DISTINCT a.*
+        //     FROM animes a
+        //     INNER JOIN anime_artists aa ON a.ann_id = aa.anime_id
+        //     INNER JOIN artists ar ON aa.artist_id = ar.spotify_id
+        //     WHERE ar.spotify_id = ANY($1)
+        //     "#,
+        // )
+        // .bind(&spotify_ids)
+        // .fetch_all(&self.pool)
+        // .await?)
+
         Ok(sqlx::query_as::<Postgres, DBAnime>(
-            r#"
-                SELECT DISTINCT a.*
-                FROM animes a
-                INNER JOIN anime_artists aa ON a.ann_id = aa.anime_id
-                INNER JOIN artists ar ON aa.artist_id = ar.spotify_id
-                WHERE ar.spotify_id = ANY($1)
-                "#,
+            "SELECT * FROM animes WHERE spotify_artist_ids && $1::CHAR(22)[]",
         )
         .bind(&spotify_ids)
         .fetch_all(&self.pool)
-        .await?)
+        .await
+        .unwrap())
     }
 
     pub async fn add_anime(
@@ -472,6 +482,76 @@ impl Database {
         }
     }
 
+    pub async fn get_anime_2(
+        &self,
+        spotify_track_object: &TrackObject,
+        anisong_db: &AnisongClient,
+        accuracy_cutoff: f32,
+    ) -> Result<NewSong> {
+        let anime_db = self
+            .get_anime_by_spotify_id(&spotify_track_object.id)
+            .await
+            .unwrap();
+
+        let artists = self
+            .get_artists_spotify_id(
+                &spotify_track_object
+                    .artists
+                    .iter()
+                    .map(|a| a.id.clone())
+                    .collect(),
+            )
+            .await
+            .unwrap();
+
+        let more_by_artists_db = self
+            .get_animes_by_artists_ids(
+                &spotify_track_object
+                    .artists
+                    .iter()
+                    .map(|a| a.id.clone())
+                    .collect(),
+            )
+            .await
+            .unwrap();
+
+        let (anime_anisong, score) = if anime_db.len() > 0 {
+            (
+                anisong_db
+                    .get_exact_song(
+                        anime_db[0].artists_ann_id.clone(),
+                        anime_db[0].song_name.clone(),
+                    )
+                    .await
+                    .unwrap(),
+                100.0,
+            )
+        } else if artists.len() > 0 {
+            let possible_anime = anisong_db
+                .get_animes_by_artists_ids(artists.iter().map(|a| a.ann_id).collect())
+                .await
+                .unwrap();
+            let (best_anime, score) = AnisongClient::pick_best_by_artist_names(
+                &possible_anime,
+                spotify_track_object
+                    .artists
+                    .iter()
+                    .map(|a| &a.name)
+                    .collect(),
+            )
+            .unwrap();
+            (
+                best_anime.into_iter().map(|a| a.to_owned()).collect(),
+                score,
+            )
+        } else {
+            // Implement raw search
+            (vec![], 0.0)
+        };
+
+        Err(Error::NotImplemented)
+    }
+
     pub async fn get_anime(
         &self,
         spotify_track_object: &TrackObject,
@@ -491,7 +571,7 @@ impl Database {
             });
 
             let more_by_artists_db: Vec<DBAnime> = self
-                .get_animes_by_artists_ids_(&anime_result[0].spotify_artist_ids)
+                .get_animes_by_artists_ids(&anime_result[0].spotify_artist_ids)
                 .await
                 .unwrap()
                 .into_iter()

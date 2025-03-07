@@ -1,3 +1,4 @@
+use axum_sessions::async_session::chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
@@ -57,6 +58,7 @@ pub struct DBAnime {
     pub kitsu_id: Option<i32>,
 
     pub song_group_id: i32,
+    // pub date_added: Option<DateTime<Utc>>,
 }
 
 #[derive(FromRow, Serialize, Deserialize)]

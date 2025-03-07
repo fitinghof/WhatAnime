@@ -3,10 +3,12 @@ use std::collections::HashSet;
 use crate::{
     Error, Result,
     anilist::types::AnilistID,
-    japanese_processing::{process_possible_japanese, process_similarity},
+    japanese_processing::{normalize_text, process_possible_japanese, process_similarity},
     spotify::responses::TrackObject,
 };
 
+use fuzzywuzzy::fuzz;
+use itertools::Itertools;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -49,22 +51,18 @@ impl AnisongClient {
             .send()
             .await?;
 
-       match response.status() {
-           value if value.is_success() => {
-               Ok(response.json().await?)
-           },
-           value if value == 503 => Ok(vec![])
-           _ => {
-               let status = response.status();
-               println!("{}", response.text().await.unwrap());
-               Err(Error::BadRequest {
-                   url: Self::SEARCH_REQUEST_URL.to_string(),
-                   status_code: status,
-               })
-           }
-       }
-
-        
+        match response.status() {
+            value if value.is_success() => Ok(response.json().await?),
+            value if value == 503 => Ok(vec![]),
+            _ => {
+                let status = response.status();
+                println!("{}", response.text().await.unwrap());
+                Err(Error::BadRequest {
+                    url: Self::SEARCH_REQUEST_URL.to_string(),
+                    status_code: status,
+                })
+            }
+        }
     }
 
     pub async fn get_exact_song(
@@ -213,6 +211,52 @@ impl AnisongClient {
                 (anime, score)
             })
             .collect())
+    }
+
+    pub fn pick_best_by_song_name<'a>(
+        animes: &'a Vec<Anime>,
+        song_name: &String,
+    ) -> Result<(Vec<&'a Anime>, f32)> {
+        if animes.len() == 0 {
+            return Ok((vec![], 0.0));
+        }
+        let mut evaluated_animes: Vec<(&Anime, f32)> = animes
+            .iter()
+            .map(|a| (a, process_similarity(&song_name, &a.songName)))
+            .sorted_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .collect();
+        let max_score = evaluated_animes[0].1;
+        evaluated_animes.retain(|a| a.1 == max_score);
+        Ok((evaluated_animes.iter().map(|a| a.0).collect(), max_score))
+    }
+
+    pub fn pick_best_by_artist_names<'a>(
+        animes: &'a Vec<Anime>,
+        artist_names: Vec<&String>,
+    ) -> Result<(Vec<&'a Anime>, f32)> {
+        if animes.len() == 0 {
+            return Ok((vec![], 0.0));
+        }
+        let artist_names = artist_names.into_iter().join(" ");
+        let mut evaluated_animes: Vec<(&Anime, f32)> = animes
+            .iter()
+            .map(|a| {
+                let anisong_artists_names = a.artists.iter().map(|b| &b.names[0]).join(" ");
+                (
+                    a,
+                    fuzz::token_set_ratio(
+                        &normalize_text(&process_possible_japanese(&artist_names)),
+                        &normalize_text(&anisong_artists_names),
+                        true,
+                        true,
+                    ) as f32,
+                )
+            })
+            .sorted_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .collect();
+        let max_score = evaluated_animes[0].1;
+        evaluated_animes.retain(|a| a.1 == max_score);
+        Ok((evaluated_animes.iter().map(|a| a.0).collect(), max_score))
     }
 }
 
