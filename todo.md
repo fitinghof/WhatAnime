@@ -8,4 +8,15 @@
 
  * Make a DNS domain
 
+ * Make a spotify bind a non-neccesity, in other words, add every song found from anisong to the db, even if it does not yet have a bind.
+ This would require:
+   * Making song_group_id nullable
+   * Logic for matching anisong with database song (Should be trivial)
+ * This would allow:
+   * More advanced song searches
+   * Less Anilist API calls, although we might want these for updating the database
+   * Less relience on APIs
+   * 
+
+
  * Scrape...
