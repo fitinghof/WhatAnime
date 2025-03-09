@@ -3,13 +3,22 @@ use std::{
     time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
-use axum::{extract::{Query, State}, response::IntoResponse, Json};
-use serde::{de::value, Deserialize, Serialize};
-use tokio::io::DuplexStream;
+use axum::{
+    Json,
+    extract::{Query, State},
+    response::IntoResponse,
+};
+use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
 
 use crate::{
-    error::{Error, Result}, spotify::{api::{currently_playing, refresh_access_token}, responses::{CurrentlyPlayingResponses, Item}}, types::ContentUpdate, AppState
+    AppState,
+    error::{Error, Result},
+    spotify::{
+        api::{currently_playing, refresh_access_token},
+        responses::{CurrentlyPlayingResponses, Item},
+    },
+    types::ContentUpdate,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -35,32 +44,51 @@ pub async fn update(
                     .unwrap()
                     .as_secs()
             {
-                refresh_access_token(session.clone(), app_state.clone()).await.unwrap();
+                refresh_access_token(session.clone(), app_state.clone())
+                    .await
+                    .unwrap();
             }
             let current_song_response = currently_playing(session.clone()).await.unwrap();
 
             let current_song = match current_song_response {
                 CurrentlyPlayingResponses::Playing(value) => value,
-                CurrentlyPlayingResponses::NotPlaying => return Ok(Json(ContentUpdate::NotPlaying)),
-                CurrentlyPlayingResponses::BadToken => return Ok(Json(ContentUpdate::LoginRequired)),
-                CurrentlyPlayingResponses::Ratelimited => return Ok(Json(ContentUpdate::NotPlaying)),
+                CurrentlyPlayingResponses::NotPlaying => {
+                    session.insert("previously_played", "").await.unwrap();
+                    return Ok(Json(ContentUpdate::NotPlaying));
+                }
+                CurrentlyPlayingResponses::BadToken => {
+                    return Ok(Json(ContentUpdate::LoginRequired));
+                }
+                CurrentlyPlayingResponses::Ratelimited => {
+                    return Ok(Json(ContentUpdate::NotPlaying));
+                }
             };
 
             match current_song.item {
                 Item::TrackObject(song) => {
-                    if params.refresh.is_none_or(|value| !value) && session.get::<String>("previously_played").await.unwrap().is_some_and(|value| value == song.id){
+                    if params.refresh.is_none_or(|value| !value)
+                        && session
+                            .get::<String>("previously_played")
+                            .await
+                            .unwrap()
+                            .is_some_and(|value| value == song.id)
+                    {
                         return Ok(Json(ContentUpdate::NoUpdates));
                     }
                     session.insert("previously_played", &song.id).await.unwrap();
                     let start = Instant::now();
-                    let value = Ok(Json(ContentUpdate::NewSong(app_state.database.get_anime(&song, &app_state.anisong_db, 40.0).await.unwrap())));
+                    let value = Ok(Json(ContentUpdate::NewSong(
+                        app_state
+                            .database
+                            .get_anime(&song, &app_state.anisong_db, 40.0)
+                            .await
+                            .unwrap(),
+                    )));
                     let duration = start.elapsed();
                     println!("Time to find animes: {:?}", duration);
                     value
                 }
-                _ => {
-                    Err(Error::NotASong)
-                }
+                _ => Err(Error::NotASong),
             }
         }
         None => {
