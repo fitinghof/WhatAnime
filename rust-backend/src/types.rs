@@ -237,14 +237,8 @@ impl FrontendAnimeEntry {
             )
             .unwrap(),
             anime_type: AnimeType::from_db(db_anime.anime_type).ok(),
-            image_url: db_anime
-                .cover_image_medium
-                .as_ref()
-                .map(|a| ImageURL::from_str(&a)),
-            banner_url: db_anime
-                .banner_image
-                .as_ref()
-                .map(|a| ImageURL::from_str(&a)),
+            image_url: db_anime.cover_image_medium.clone(),
+            banner_url: db_anime.banner_image.clone(),
             linked_ids: AnimeListLinks {
                 myanimelist: db_anime.mal_id,
                 anidb: db_anime.anidb_id,

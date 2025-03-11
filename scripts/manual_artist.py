@@ -9,7 +9,7 @@ from database import DataBase
 
 sr = Search_Request(
     artist_search_filter=Search_Filter(
-        search="Kamisama, Boku wa Kizuite Shimatta",
+        search="L([iíίɪ]|ii)SA$|^A([iíίɪ]|ii)m[eəéÉêёëèæē][rЯ]",
         partial_match=False,
     )
 )
@@ -18,14 +18,12 @@ if __name__ == "__main__":
     anisong_db = AnisongDB_Interface()
     db = DataBase()
     artist = anisong_db.get_songs(sr)[0].artists[0]
-    print(artist.names)
-    artist_spotify_id = "19hnen14uXCUMoBAnTmrCp"
+    artist_spotify_id = "5TB17Dz2LxzznEW190lYs0"
     inp = input(
-        f"""Is this the correct artist?{artist.names}
-        Does this link to the artist?
-        https://open.spotify.com/artist/{artist_spotify_id}
-        If stuff looks good typ 'y'
-        """
+        f"Is this the correct artist? {artist.names}\n"
+        "Does this link to the artist?\n"
+        f"https://open.spotify.com/artist/{artist_spotify_id}\n"
+        "If stuff looks good typ 'y'\n"
     )
 
     if inp == "y" or inp == "Y":

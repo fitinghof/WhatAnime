@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use crate::{Error, Result};
 use num_enum::TryFromPrimitive;
 use reqwest::Client;
@@ -47,7 +45,7 @@ impl ImageURL {
 #[sqlx(transparent)]
 pub struct HexColor(String);
 
-#[derive(Deserialize, Serialize, FromRow)]
+#[derive(Deserialize, Serialize, FromRow, Clone)]
 pub struct CoverImage {
     pub color: Option<HexColor>,
     pub medium: Option<ImageURL>,
@@ -72,9 +70,8 @@ pub enum MediaFormat {
     OneShot,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, FromRow, Deserialize, Serialize, Type)]
-#[sqlx(transparent)]
-pub struct Genre(String);
+//#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize, Clone)]
+//pub struct Genre(String);
 
 // #[derive(Debug, Deserialize, Serialize, TryFromPrimitive, Clone)]
 // #[repr(i16)]
@@ -119,10 +116,10 @@ impl URL {
     }
 }
 
-#[derive(Deserialize, Serialize, FromRow)]
+#[derive(Deserialize, Serialize, FromRow, Clone)]
 pub struct Studio {
     pub id: i32,
-    pub name: Option<String>,
+    pub name: String,
     #[serde(rename = "siteUrl")]
     pub site_url: Option<URL>,
 }
@@ -137,13 +134,13 @@ pub struct StudioConnection {
 )]
 #[sqlx(transparent)]
 pub struct TagID(i32);
-#[derive(Deserialize, Serialize, FromRow)]
+#[derive(Deserialize, Serialize, FromRow, Clone)]
 pub struct MediaTag {
     pub id: TagID,
-    pub name: Option<String>,
+    pub name: String,
 }
 
-#[derive(Deserialize, Serialize, FromRow)]
+#[derive(Deserialize, Serialize, FromRow, Clone)]
 pub struct MediaTrailer {
     pub id: String,
     pub site: String,
@@ -161,7 +158,7 @@ pub struct Media {
     #[serde(rename = "coverImage")]
     pub cover_image: Option<CoverImage>,
     pub format: Option<MediaFormat>,
-    pub genres: Option<Vec<Genre>>,
+    pub genres: Option<Vec<String>>,
     pub source: Option<String>,
     pub studios: Option<StudioConnection>,
     pub tags: Option<Vec<MediaTag>>,
@@ -217,6 +214,7 @@ impl Media {
                 break;
             }
         }
+        all_media.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(all_media)
     }
 }

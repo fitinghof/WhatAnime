@@ -1,5 +1,6 @@
 pub mod databasetypes;
 pub mod find_anime_no_db;
+pub mod regex_search;
 
 use crate::anilist::Media;
 use crate::anilist::types::{TagID, URL};
@@ -11,11 +12,14 @@ use crate::types::{
     SongMiss,
 };
 use crate::{Error, Result};
+use axum_sessions::async_session::chrono::{Duration, Utc};
 use databasetypes::{DBAnime, DBArtist, SongGroup, SongGroupLink};
 use itertools::Itertools;
+use regex_search::create_artist_regex;
 use reqwest::StatusCode;
 use sqlx::postgres::PgPoolOptions;
-use sqlx::{Pool, Postgres};
+use sqlx::{Pool, Postgres, Transaction};
+use std::cmp::max;
 use std::collections::HashSet;
 use std::env;
 
@@ -25,6 +29,7 @@ pub struct Database {
 
 impl Database {
     const ACCURACY_AUTOADD_LIMIT: f32 = 80.0;
+    const UPDATE_TIME: Duration = Duration::days(7);
     // A bound function to initialize the Database. You can call this once on startup.
     pub async fn new() -> Self {
         // Ensure the DATABASE_URL environment variable is set.
@@ -113,6 +118,16 @@ impl Database {
         }
     }
 
+    async fn get_animes_by_artists_ann_ids(&self, ann_ids: &Vec<i32>) -> Result<Vec<DBAnime>> {
+        Ok(
+            sqlx::query_as::<Postgres, DBAnime>("SELECT * FROM animes WHERE artists_ann_id && $1")
+                .bind(&ann_ids)
+                .fetch_all(&self.pool)
+                .await
+                .unwrap(),
+        )
+    }
+
     async fn get_animes_by_artists_ids(&self, spotify_ids: &Vec<String>) -> Result<Vec<DBAnime>> {
         // Might want to use the jointable, but that would require starting to fill the join table aswell.
 
@@ -138,6 +153,64 @@ impl Database {
         .unwrap())
     }
 
+    pub async fn update_anime(&self, animes: &Vec<DBAnime>) {
+        let mut tx = self.pool.begin().await.unwrap();
+        for anime in animes {
+            sqlx::query::<Postgres>(
+                r#"
+            UPDATE animes 
+            SET (
+                episodes = $1
+                mean_score = $2
+                banner_image = $3
+                cover_image_color = $4
+                cover_image_medium = $5
+                cover_image_large = $6
+                cover_image_extra_large = $7
+                media_format = $8
+                genres = $9
+                source = $10
+                studio_ids = $11
+                studio_names = $12
+                studio_urls = $13
+                tag_ids = $14
+                tag_names = $15
+                trailer_id = $16
+                trailer_site = $17
+                thumbnail = $18
+                release_season = $19
+                release_year = $20
+            )
+            WHERE ann_song_id = $21;
+            "#,
+            )
+            .bind(&anime.episodes)
+            .bind(&anime.mean_score)
+            .bind(&anime.banner_image)
+            .bind(&anime.cover_image_color)
+            .bind(&anime.cover_image_medium)
+            .bind(&anime.cover_image_large)
+            .bind(&anime.cover_image_extra_large)
+            .bind(&anime.media_format)
+            .bind(&anime.genres)
+            .bind(&anime.source)
+            .bind(&anime.studio_ids)
+            .bind(&anime.studio_names)
+            .bind(&anime.studio_urls)
+            .bind(&anime.tag_ids)
+            .bind(&anime.tag_names)
+            .bind(&anime.trailer_id)
+            .bind(&anime.trailer_site)
+            .bind(&anime.thumbnail)
+            .bind(&anime.release_season)
+            .bind(&anime.release_year)
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+        }
+        tx.commit().await.unwrap();
+    }
+
     pub async fn add_anime(
         &self,
         spotify_track_object: &TrackObject,
@@ -159,57 +232,41 @@ impl Database {
         let _ = sqlx::query::<Postgres>(
             r#"
             INSERT INTO animes (
-                ann_id,
-                title_eng,
-                title_jpn,
-                index_type,
-                index_number,
-                anime_type,
-                episodes,
-                mean_score,
-                banner_image,
-                cover_image_color,
-                cover_image_medium,
-                cover_image_large,
-                cover_image_extra_large,
-                media_format,
-                genres,
-                source,
-                studio_ids,
-                studio_names,
-                studio_urls,
-                tag_ids,
-                tag_names,
-                trailer_id,
-                trailer_site,
-                thumbnail,
-                release_season,
-                release_year,
-                from_user_name,
-                from_user_mail,
-                spotify_id,
-                ann_song_id,
-                song_name,
-                spotify_artist_ids,
-                artist_names,
-                artists_ann_id,
-                composers_ann_id,
-                arrangers_ann_id,
-                track_index_type,
-                track_index_number,
-                mal_id,
-                anilist_id,
-                anidb_id,
-                kitsu_id,
+                ann_id, title_eng, title_jpn, index_type, index_number, anime_type, episodes, mean_score,
+                banner_image, cover_image_color, cover_image_medium, cover_image_large, cover_image_extra_large,
+                media_format, genres, source, studio_ids, studio_names, studio_urls, tag_ids, tag_names, trailer_id,
+                trailer_site, thumbnail, release_season, release_year, from_user_name, from_user_mail,
+                ann_song_id, song_name, spotify_artist_ids, artist_names, artists_ann_id, composers_ann_id,
+                arrangers_ann_id, track_index_type, track_index_number, mal_id, anilist_id, anidb_id, kitsu_id, 
                 song_group_id
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                 $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
                 $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
-                $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43
+                $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42
             )
-            ON CONFLICT DO NOTHING
+            ON CONFLICT (ann_song_id) DO UPDATE SET 
+            episodes = EXCLUDED.episodes,
+            mean_score = EXCLUDED.mean_score,
+            banner_image = EXCLUDED.banner_image,
+            cover_image_color = EXCLUDED.cover_image_color,
+            cover_image_medium = EXCLUDED.cover_image_medium,
+            cover_image_large = EXCLUDED.cover_image_large,
+            cover_image_extra_large = EXCLUDED.cover_image_extra_large,
+            media_format = EXCLUDED.media_format,
+            genres = EXCLUDED.genres,
+            source = EXCLUDED.source,
+            studio_ids = EXCLUDED.studio_ids,
+            studio_names = EXCLUDED.studio_names,
+            studio_urls = EXCLUDED.studio_urls,
+            tag_ids = EXCLUDED.tag_ids,
+            tag_names = EXCLUDED.tag_names,
+            trailer_id = EXCLUDED.trailer_id,
+            trailer_site = EXCLUDED.trailer_site,
+            thumbnail = EXCLUDED.thumbnail,
+            release_season = EXCLUDED.release_season,
+            release_year = EXCLUDED.release_year
         "#,
         )
         .bind(anisong_anime.annId) // i32
@@ -241,7 +298,7 @@ impl Database {
             s.nodes
                 .iter()
                 .map(|s| s.name.clone())
-                .collect::<Vec<Option<String>>>()
+                .collect::<Vec<String>>()
         }))
         .bind(info.studios.as_ref().map(|s| {
             s.nodes
@@ -257,7 +314,7 @@ impl Database {
         .bind(info.tags.as_ref().map(|t| {
             t.iter()
                 .map(|t| t.name.clone())
-                .collect::<Vec<Option<String>>>()
+                .collect::<Vec<String>>()
         }))
         .bind(info.trailer.as_ref().map(|t| t.id.clone())) // Option<String>
         .bind(info.trailer.as_ref().map(|t| t.site.clone())) // Option<String>
@@ -266,7 +323,6 @@ impl Database {
         .bind(info.season_year) // Option<i32>
         .bind(from_user_name) // Option<String>
         .bind(from_user_mail) // Option<String>
-        .bind("") // Should be removed completly by next database migration, replaced by song group id.
         .bind(anisong_anime.annSongId)
         .bind(anisong_anime.songName.clone())
         .bind(
@@ -482,89 +538,254 @@ impl Database {
         }
     }
 
+    // Fetches all Anilist entries for the to add vectors, creates DBAnimes from those and adds / updates all DBAnimes
+    pub async fn update_or_add(
+        &self,
+        mut updates: Vec<&DBAnime>,
+        to_add_hit: &Vec<Anime>,
+        to_add: &Vec<Anime>,
+        track: &TrackObject,
+    ) -> Result<(Vec<DBAnime>, Vec<DBAnime>)> {
+        let mut ids: Vec<crate::anilist::types::AnilistID> =
+            updates.iter().filter_map(|a| a.anilist_id).collect();
+
+        ids.extend(to_add_hit.iter().filter_map(|a| a.linked_ids.anilist));
+        ids.extend(to_add.iter().filter_map(|a| a.linked_ids.anilist));
+        let anilist_animes = Media::fetch_many(ids).await.unwrap();
+
+        let group_id = match to_add_hit.is_empty() {
+            false => Some(
+                self.add_song_group_link(
+                    &track.id,
+                    &to_add[0].songName,
+                    &to_add[0].artists.iter().map(|a| a.id).collect(),
+                )
+                .await,
+            ),
+            true => None,
+        };
+
+        let hit_animes =
+            DBAnime::from_anisongs_and_anilists(to_add_hit, &anilist_animes, Some(track), group_id)
+                .unwrap();
+
+        let more_animes =
+            DBAnime::from_anisongs_and_anilists(to_add, &anilist_animes, None, None).unwrap();
+
+        // Now How in the fuck where we supposed to update our Vec of DBAnimes?
+
+        // Send combined Vectors to database
+        // return added stuff
+        todo!("implement");
+
+        Err(Error::NotImplemented)
+    }
+
+    pub async fn db_full_search(
+        &self,
+        track: &TrackObject,
+    ) -> Result<(Vec<DBAnime>, Vec<DBAnime>, Vec<i32>, f32)> {
+        let anime = self.get_anime_by_spotify_id(&track.id).await.unwrap();
+        let artists = self
+            .get_artists_spotify_id(&track.artists.iter().map(|a| a.id.clone()).collect())
+            .await
+            .unwrap();
+
+        let artist_ann_ids = if anime.len() > 0 {
+            anime[0].artists_ann_id.clone()
+        } else if artists.len() > 0 {
+            artists.iter().map(|a| a.ann_id).collect()
+        } else {
+            let artists = sqlx::query_as::<Postgres, DBArtist>(
+                "SELECT * FROM public.artists WHERE EXISTS (
+                    SELECT 1
+                    FROM unnest(names) AS name WHERE name ~* $1);",
+            )
+            .bind(create_artist_regex(
+                track.artists.iter().map(|a| &a.name).collect(),
+            ))
+            .fetch_all(&self.pool)
+            .await
+            .unwrap();
+
+            // Add some attempted spotify - artist entry bind
+            // This would only be if the artist name is listed as something like (CV:Real artist name)
+
+            artists.iter().map(|a| a.ann_id).collect()
+        };
+
+        let more_by_artists = self
+            .get_animes_by_artists_ann_ids(&artist_ann_ids)
+            .await
+            .unwrap();
+
+        if anime.len() > 0 {
+            Ok((anime, more_by_artists, artist_ann_ids, 100.0))
+        } else if more_by_artists.len() > 0 {
+            let (best_match, certainty) =
+                DBAnime::pick_best_by_song_name(&more_by_artists, &track.name).unwrap();
+            if certainty > Self::ACCURACY_AUTOADD_LIMIT {
+                self.add_song_group_link(
+                    &track.id,
+                    &best_match[0].song_name,
+                    &best_match[0].artists_ann_id,
+                )
+                .await;
+            }
+            Ok((
+                best_match.into_iter().map(|a| a.clone()).collect(),
+                more_by_artists,
+                artist_ann_ids,
+                certainty,
+            ))
+        } else {
+            Ok((vec![], vec![], artist_ann_ids, 0.0))
+        }
+    }
+
     pub async fn get_anime_2(
         &self,
-        spotify_track_object: &TrackObject,
+        track: &TrackObject,
         anisong_db: &AnisongClient,
         accuracy_cutoff: f32,
     ) -> Result<NewSong> {
-        // There should be a set to filter out duplicates here
+        let (mut hit_anime, mut more_by_artists, artists_ann_id, certainty) =
+            self.db_full_search(track).await.unwrap();
 
-        let anime_db = self
-            .get_anime_by_spotify_id(&spotify_track_object.id)
-            .await
-            .unwrap();
-
-        // if 0 implement db search by artist names since we will soon have unlinked entries in the database.
-
-        let artists = self
-            .get_artists_spotify_id(
-                &spotify_track_object
-                    .artists
-                    .iter()
-                    .map(|a| a.id.clone())
-                    .collect(),
-            )
-            .await
-            .unwrap();
-
-        let more_by_artists_db = self
-            .get_animes_by_artists_ids(
-                &spotify_track_object
-                    .artists
-                    .iter()
-                    .map(|a| a.id.clone())
-                    .collect(),
-            )
-            .await
-            .unwrap();
-
-        // if 0 implement db search by artist names since we will soon have unlinked entries in the database.
-
-        // might want to seperate this into it's own functions
-        let (anime_anisong, score) = if anime_db.len() > 0 {
-            (
-                anisong_db
-                    .get_exact_song(
-                        anime_db[0].artists_ann_id.clone(),
-                        anime_db[0].song_name.clone(),
-                    )
-                    .await
-                    .unwrap(),
-                100.0,
-            )
-        } else if artists.len() > 0 {
-            let possible_anime = anisong_db
-                .get_animes_by_artists_ids(artists.iter().map(|a| a.ann_id).collect())
+        if certainty > Self::ACCURACY_AUTOADD_LIMIT {
+            let mut anisong_animes = anisong_db
+                .get_animes_by_artists_ids(artists_ann_id)
                 .await
                 .unwrap();
-            let (best_anime, score) = AnisongClient::pick_best_by_artist_names(
-                &possible_anime,
-                spotify_track_object
-                    .artists
+
+            let max_unique = max(
+                hit_anime.len() + more_by_artists.len(),
+                anisong_animes.len(),
+            );
+
+            let mut anime_set = HashSet::with_capacity(max_unique);
+
+            // filter out duplicates
+            hit_anime.retain(|a| anime_set.insert(a.ann_song_id));
+            more_by_artists.retain(|a| anime_set.insert(a.ann_song_id));
+            anisong_animes.retain(|a| anime_set.insert(a.annSongId));
+
+            let mut updates: Vec<&DBAnime> = more_by_artists
+                .iter()
+                .filter(|a| a.last_updated + Self::UPDATE_TIME < Utc::now())
+                .collect();
+
+            updates.extend(
+                hit_anime
                     .iter()
-                    .map(|a| &a.name)
+                    .filter(|a| a.last_updated + Self::UPDATE_TIME < Utc::now()),
+            );
+
+            let (anisong_anime_hits, anisong_anime_more): (Vec<Anime>, Vec<Anime>) =
+                anisong_animes.into_iter().partition(|a| {
+                    a.artists.iter().map(|a| a.id).collect::<Vec<i32>>()
+                        == hit_anime[0].artists_ann_id
+                        && a.songName == hit_anime[0].song_name
+                });
+
+            let (anisong_hit, anisong_more_by_artists) = self
+                .update_or_add(updates, &anisong_anime_hits, &anisong_anime_more, &track)
+                .await
+                .unwrap();
+
+            hit_anime.extend(anisong_hit);
+            more_by_artists.extend(anisong_more_by_artists);
+
+            Ok(NewSong::Hit(SongHit {
+                song_info: SongInfo::from_track_obj(track),
+                certainty: certainty as i32,
+                anime_info: hit_anime
+                    .iter()
+                    .map(|a| FrontendAnimeEntry::from_db(a))
                     .collect(),
-            )
-            .unwrap();
-            (
-                best_anime.into_iter().map(|a| a.to_owned()).collect(),
-                score,
-            )
+                more_with_artist: more_by_artists
+                    .iter()
+                    .map(|a| FrontendAnimeEntry::from_db(a))
+                    .collect(),
+            }))
         } else {
-            // Implement raw search by both artists first and song title first.
-            (vec![], 0.0)
-        };
+            if artists_ann_id.len() > 0 {
+                let mut anisongs = anisong_db
+                    .get_animes_by_artists_ids(artists_ann_id.clone())
+                    .await
+                    .unwrap();
+                let (best, score) =
+                    AnisongClient::pick_best_by_song_name(&anisongs, &track.name).unwrap();
 
-        // Same as above but for more by artists
+                // Add constant for acceptable match
+                if score > accuracy_cutoff {
+                    let best_song_name = best[0].songName.clone();
+                    let best_artist_ids: Vec<i32> = best[0].artists.iter().map(|a| a.id).collect();
+                    let mut artist_set = HashSet::with_capacity(best[0].artists.len());
+                    artists_ann_id.iter().for_each(|id| {
+                        artist_set.insert(*id);
+                    });
 
-        // filter our stuff that is already in the database, add what is not in the database to the database
-        // maybe the add to database should also return the DBAnime objects it added?
-        // This way it would be cleaner when we converted it to frontend animes for return.
+                    let missing_artists: Vec<i32> = best_artist_ids
+                        .iter()
+                        .filter(|&&id| artist_set.insert(id))
+                        .cloned()
+                        .collect();
 
-        // Go through our database entries and see if any are due for an update.
+                    if !missing_artists.is_empty() {
+                        let additional_anisongs = anisong_db
+                            .get_animes_by_artists_ids(missing_artists)
+                            .await
+                            .unwrap();
+                        anisongs.extend(additional_anisongs);
+                    }
 
-        Err(Error::NotImplemented)
+                    let (anisong_anime_hits, anisong_anime_more): (Vec<Anime>, Vec<Anime>) =
+                        anisongs.into_iter().partition(|a| {
+                            a.artists.iter().map(|a| a.id).collect::<Vec<i32>>()
+                                == hit_anime[0].artists_ann_id
+                                && a.songName == hit_anime[0].song_name
+                        });
+
+                    let (anime_hit, more_by_artists): (Vec<DBAnime>, Vec<DBAnime>) = self
+                        .update_or_add(vec![], &anisong_anime_hits, &anisong_anime_more, &track)
+                        .await
+                        .unwrap();
+
+                    Ok(NewSong::Hit(SongHit {
+                        song_info: SongInfo::from_track_obj(track),
+                        certainty: certainty as i32,
+                        anime_info: anime_hit
+                            .iter()
+                            .map(|a| FrontendAnimeEntry::from_db(a))
+                            .collect(),
+                        more_with_artist: more_by_artists
+                            .iter()
+                            .map(|a| FrontendAnimeEntry::from_db(a))
+                            .collect(),
+                    }))
+                } else {
+                    let possible = self
+                        .update_or_add(vec![], &vec![], &anisongs, &track)
+                        .await
+                        .unwrap();
+
+                    Ok(NewSong::Miss(SongMiss {
+                        song_info: SongInfo::from_track_obj(track),
+                        possible_anime: possible
+                            .1
+                            .iter()
+                            .map(|a| FrontendAnimeEntry::from_db(a))
+                            .collect(),
+                    }))
+                }
+            } else {
+                return Ok(self
+                    .find_most_likely_anime(track, accuracy_cutoff, anisong_db)
+                    .await
+                    .unwrap());
+            }
+        }
     }
 
     pub async fn get_anime(
@@ -586,7 +807,7 @@ impl Database {
             });
 
             let more_by_artists_db: Vec<DBAnime> = self
-                .get_animes_by_artists_ids(&anime_result[0].spotify_artist_ids)
+                .get_animes_by_artists_ids(&anime_result[0].spotify_artist_ids.as_ref().unwrap())
                 .await
                 .unwrap()
                 .into_iter()
