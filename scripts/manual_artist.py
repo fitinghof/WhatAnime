@@ -9,7 +9,7 @@ from database import DataBase
 
 sr = Search_Request(
     artist_search_filter=Search_Filter(
-        search="L([iíίɪ]|ii)SA$|^A([iíίɪ]|ii)m[eəéÉêёëèæē][rЯ]",
+        search="Hiroyuki Sawano",
         partial_match=False,
     )
 )
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     anisong_db = AnisongDB_Interface()
     db = DataBase()
     artist = anisong_db.get_songs(sr)[0].artists[0]
-    artist_spotify_id = "5TB17Dz2LxzznEW190lYs0"
+    artist_spotify_id = "0Riv2KnFcLZA3JSVryRg4y"
     inp = input(
         f"Is this the correct artist? {artist.names}\n"
         "Does this link to the artist?\n"

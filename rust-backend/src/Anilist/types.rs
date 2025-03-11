@@ -18,7 +18,7 @@ impl From<i32> for AnilistID {
     }
 }
 
-#[derive(Deserialize, Serialize, FromRow)]
+#[derive(Deserialize, Serialize, FromRow, Debug)]
 pub struct MediaTitle {
     pub romaji: Option<String>,
     pub english: Option<String>,
@@ -45,7 +45,7 @@ impl ImageURL {
 #[sqlx(transparent)]
 pub struct HexColor(String);
 
-#[derive(Deserialize, Serialize, FromRow, Clone)]
+#[derive(Deserialize, Serialize, FromRow, Clone, Debug)]
 pub struct CoverImage {
     pub color: Option<HexColor>,
     pub medium: Option<ImageURL>,
@@ -116,7 +116,7 @@ impl URL {
     }
 }
 
-#[derive(Deserialize, Serialize, FromRow, Clone)]
+#[derive(Deserialize, Serialize, FromRow, Clone, Debug)]
 pub struct Studio {
     pub id: i32,
     pub name: String,
@@ -124,7 +124,7 @@ pub struct Studio {
     pub site_url: Option<URL>,
 }
 
-#[derive(Deserialize, Serialize, FromRow)]
+#[derive(Deserialize, Serialize, FromRow, Debug)]
 pub struct StudioConnection {
     // edges: StudioEdge
     pub nodes: Vec<Studio>, // pageInfo: PageInfo
@@ -134,20 +134,20 @@ pub struct StudioConnection {
 )]
 #[sqlx(transparent)]
 pub struct TagID(i32);
-#[derive(Deserialize, Serialize, FromRow, Clone)]
+#[derive(Deserialize, Serialize, FromRow, Clone, Debug)]
 pub struct MediaTag {
     pub id: TagID,
     pub name: String,
 }
 
-#[derive(Deserialize, Serialize, FromRow, Clone)]
+#[derive(Deserialize, Serialize, FromRow, Clone, Debug)]
 pub struct MediaTrailer {
     pub id: String,
     pub site: String,
     pub thumbnail: ImageURL,
 }
 
-#[derive(Deserialize, Serialize, FromRow)]
+#[derive(Deserialize, Serialize, FromRow, Debug)]
 pub struct Media {
     pub id: AnilistID,
     pub title: MediaTitle,

@@ -80,7 +80,7 @@ pub async fn update(
                     let value = Ok(Json(ContentUpdate::NewSong(
                         app_state
                             .database
-                            .get_anime(&song, &app_state.anisong_db, 40.0)
+                            .get_anime_2(&song, &app_state.anisong_db, 40.0)
                             .await
                             .unwrap(),
                     )));

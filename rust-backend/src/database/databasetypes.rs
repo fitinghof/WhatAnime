@@ -1,10 +1,10 @@
 use crate::anilist::Media;
 use crate::anisong::Anime;
 // use axum_sessions::async_session::chrono::{DateTime, Utc};
-use crate::japanese_processing::{process_possible_japanese, process_similarity};
+use crate::Result;
+use crate::japanese_processing::process_similarity;
 use crate::spotify::responses::TrackObject;
 use crate::types::{AnimeIndex, AnimeTrackIndex, AnimeType};
-use crate::{Error, Result, spotify};
 use axum_sessions::async_session::chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,7 @@ use sqlx::FromRow;
 
 use crate::anilist::types::{AnilistID, HexColor, ImageURL, TagID, URL};
 
-#[derive(FromRow, Serialize, Deserialize, Clone)]
+#[derive(FromRow, Serialize, Deserialize, Clone, Debug)]
 pub struct DBAnime {
     pub ann_id: i32,
     pub title_eng: String,
@@ -90,7 +90,7 @@ impl DBAnime {
     pub fn from_anisong_and_anilist(
         anisong: &Anime,
         anilist: Option<&Media>,
-        track: Option<&TrackObject>,
+        //track: Option<&TrackObject>,
         group_id: Option<i32>,
     ) -> Self {
         let anime_index = AnimeIndex::from_str(&anisong.animeCategory).unwrap();
@@ -101,12 +101,12 @@ impl DBAnime {
             .flatten();
         let tags = anilist.map(|a| a.tags.as_ref()).flatten();
         let trailer = anilist.map(|a| a.trailer.as_ref()).flatten();
-        let spotify_artist_ids = track.map(|t| {
-            t.artists
-                .iter()
-                .map(|a| a.id.clone())
-                .collect::<Vec<String>>()
-        });
+        // let spotify_artist_ids = track.map(|t| {
+        //     t.artists
+        //         .iter()
+        //         .map(|a| a.id.clone())
+        //         .collect::<Vec<String>>()
+        // });
         let track_index = AnimeTrackIndex::from_str(&anisong.songType).unwrap();
         Self {
             ann_id: anisong.annId,
@@ -143,7 +143,7 @@ impl DBAnime {
                 .flatten(),
             ann_song_id: anisong.annSongId,
             song_name: anisong.songName.clone(),
-            spotify_artist_ids: spotify_artist_ids,
+            spotify_artist_ids: /*spotify_artist_ids*/ Some(vec![]),
             artist_names: anisong.artists.iter().map(|a| a.names[0].clone()).collect(),
             artists_ann_id: anisong.artists.iter().map(|a| a.id).collect(),
             composers_ann_id: anisong.composers.iter().map(|a| a.id).collect(),
@@ -159,38 +159,109 @@ impl DBAnime {
         }
     }
 
+    pub fn update(&mut self, anilist_data: &Media, group_id: Option<i32>) {
+        let cover_image = anilist_data.cover_image.as_ref();
+        let studios = anilist_data.studios.as_ref().map(|s| &s.nodes);
+        let tags = anilist_data.tags.as_ref();
+        let trailer = anilist_data.trailer.as_ref();
+        self.mean_score = Some(anilist_data.mean_score);
+        self.banner_image = anilist_data.banner_image.clone();
+        self.cover_image_color = cover_image.map(|b| b.color.clone()).flatten();
+        self.cover_image_medium = cover_image.map(|b| b.medium.clone()).flatten();
+        self.cover_image_large = cover_image.map(|b| b.large.clone()).flatten();
+        self.cover_image_extra_large = cover_image.map(|b| b.extra_large.clone()).flatten();
+        self.media_format = anilist_data.format.as_ref().map(|f| f.clone() as i16);
+        self.genres = anilist_data.genres.clone();
+        self.source = anilist_data.source.clone();
+        self.studio_ids = studios.map(|s| s.iter().map(|s| s.id).collect());
+        self.studio_names = studios
+            .as_ref()
+            .map(|s| s.iter().map(|s| s.name.clone()).collect());
+        self.studio_urls = studios.map(|s| s.iter().map(|s| s.site_url.clone()).collect());
+        self.episodes = anilist_data.episodes;
+        self.tag_ids = tags.map(|a| a.iter().map(|t| t.id.clone()).collect());
+        self.tag_names = tags.map(|a| a.iter().map(|t| t.name.clone()).collect());
+        self.trailer_id = trailer.map(|a| a.id.clone());
+        self.trailer_site = trailer.map(|t| t.site.clone());
+        self.thumbnail = trailer.map(|t| t.thumbnail.clone());
+        self.release_year = anilist_data.season_year;
+        self.release_season = anilist_data.season.as_ref().map(|s| s.to_owned() as i16);
+        self.song_group_id = group_id;
+    }
+
+    pub fn update_all(
+        db_animes: &mut Vec<DBAnime>,
+        new_anilist: &Vec<Media>,
+        group_id: Option<i32>,
+    ) {
+        if db_animes.is_empty() || new_anilist.is_empty() {
+            return;
+        }
+        db_animes.sort_by(|a, b| a.ann_song_id.cmp(&b.ann_song_id));
+        let mut anilist_index = 0;
+        let mut db_anime_index = 0;
+        while anilist_index < new_anilist.len() && db_anime_index < db_animes.len() {
+            let media = &new_anilist[anilist_index];
+            let dbanime = &mut db_animes[db_anime_index];
+
+            if dbanime.anilist_id.is_some_and(|a| a == media.id) {
+                db_anime_index += 1;
+                dbanime.update(media, group_id);
+            } else {
+                match dbanime.anilist_id.is_none_or(|id| id < media.id) {
+                    true => {
+                        db_anime_index += 1;
+                    }
+                    false => {
+                        anilist_index += 1;
+                    }
+                }
+            };
+        }
+    }
+
     // expects that the Media vec is sorted by id and the Anime vec is sorted by anilist_id
     pub fn from_anisongs_and_anilists(
         anisongs: &Vec<Anime>,
         anilists: &Vec<Media>,
-        track: Option<&TrackObject>,
+        // track: Option<&TrackObject>,
         group_id: Option<i32>,
     ) -> Result<Vec<DBAnime>> {
         if anisongs.is_empty() || anilists.is_empty() {
             return Ok(vec![]);
         }
+        let mut anisongs_sorted: Vec<&Anime> = anisongs.iter().collect();
+
+        anisongs_sorted.sort_by(|&a, &b| {
+            a.linked_ids
+                .anilist
+                .unwrap_or(AnilistID(-1))
+                .cmp(&b.linked_ids.anilist.unwrap_or(AnilistID(-1)))
+        });
+
         let mut anilist_index = 0;
         let mut anisong_index = 0;
         let mut db_animes = Vec::with_capacity(anisongs.len());
+
         while anilist_index < anilists.len() && anisong_index < anisongs.len() {
             let media = &anilists[anilist_index];
-            let anisong = &anisongs[anisong_index];
+            let anisong = &anisongs_sorted[anisong_index];
 
             let db_anime = if anisong.linked_ids.anilist.is_none() {
                 anisong_index += 1;
-                Self::from_anisong_and_anilist(anisong, None, track, group_id)
+                Self::from_anisong_and_anilist(anisong, None, group_id)
             } else if anisong.linked_ids.anilist.unwrap() == media.id {
                 anisong_index += 1;
-                Self::from_anisong_and_anilist(anisong, Some(&media), track, group_id)
+                Self::from_anisong_and_anilist(anisong, Some(&media), group_id)
             } else {
-                match media.id > anisong.linked_ids.anilist.unwrap() {
+                match media.id < anisong.linked_ids.anilist.unwrap() {
                     true => {
                         anilist_index += 1;
                         continue;
                     }
                     false => {
                         anisong_index += 1;
-                        Self::from_anisong_and_anilist(anisong, None, track, group_id)
+                        Self::from_anisong_and_anilist(anisong, None, group_id)
                     }
                 }
             };
@@ -200,7 +271,7 @@ impl DBAnime {
     }
 }
 
-#[derive(FromRow, Serialize, Deserialize)]
+#[derive(FromRow, Serialize, Deserialize, Debug)]
 pub struct DBArtist {
     pub spotify_id: String,
     pub ann_id: i32,
