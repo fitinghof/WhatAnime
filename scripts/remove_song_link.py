@@ -8,10 +8,7 @@ from anisongdb import (
 from database import DataBase
 
 
-if __name__ == "__main__":
-    db = DataBase()
-    spotify_id = "0Z51sIImtvHFIVomgeS1R7"
-
+def remove_song_link(spotify_id: str, db: DataBase):
     cursor = db.conn.cursor()
     confirm = input(f"correct link? : https://open.spotify.com/track/{spotify_id}\n")
     if confirm == "y" or confirm == "Y":
@@ -34,3 +31,8 @@ if __name__ == "__main__":
         print("Done :)")
     else:
         print("Nothing done")
+
+
+if __name__ == "__main__":
+    db = DataBase()
+    remove_song_link("0Z51sIImtvHFIVomgeS1R7")

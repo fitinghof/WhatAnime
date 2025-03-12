@@ -38,7 +38,7 @@ const Update = () => {
 
                     } else if (data.NewSong.Hit) {
                         const hit = data.NewSong.Hit;
-                        setShowConfirmButton(hit.certainty < 80);
+                        setShowConfirmButton(hit.certainty <= 80);
                         setSongInfo({
                             title: hit.song_info.title,
                             artists: hit.song_info.artists,

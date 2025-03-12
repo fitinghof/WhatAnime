@@ -32,7 +32,6 @@ class DBAnime(BaseModel):
     thumbnail: Optional[str] = None
     release_year: Optional[int] = None
     release_season: Optional[int] = None
-    spotify_id: str
     ann_song_id: int
     song_name: str
     spotify_artist_ids: list[str]

@@ -6,6 +6,8 @@ export interface AnimeIndex {
   ONA?: number,
   OVA?: number,
   TVSpecial?: number,
+  Special?: number,
+  MusicVideo?: number,
 }
 
 function parseAnimeIndex(animeIndex: AnimeIndex): string {
@@ -13,7 +15,9 @@ function parseAnimeIndex(animeIndex: AnimeIndex): string {
   if (animeIndex.Movie !== undefined) return `Movie ${animeIndex.Movie ? animeIndex.Movie : 1}`;
   if (animeIndex.ONA !== undefined) return `ONA ${animeIndex.ONA ? animeIndex.ONA : 1}`;
   if (animeIndex.OVA !== undefined) return `OVA ${animeIndex.OVA ? animeIndex.OVA : 1}`;
-  if (animeIndex.TVSpecial !== undefined) return `OVA ${animeIndex.TVSpecial ? animeIndex.TVSpecial : 1}`;
+  if (animeIndex.TVSpecial !== undefined) return `TV Special ${animeIndex.TVSpecial ? animeIndex.TVSpecial : 1}`;
+  if (animeIndex.Special !== undefined) return `Special ${animeIndex.Special ? animeIndex.Special : 1}`;
+  if (animeIndex.MusicVideo !== undefined) return `Music Video ${animeIndex.MusicVideo ? animeIndex.MusicVideo : 1}`;
   return "wacky season"
 }
 

@@ -60,7 +60,10 @@ impl AnimeType {
                 "OVA" => Self::OVA,
                 "ONA" => Self::ONA,
                 "Special" => Self::Special,
-                _ => Self::Unknown,
+                _ => {
+                    dbg!(format!("Unkown anime type: {}", &value));
+                    Self::Unknown
+                }
             },
             None => Self::Unknown,
         }

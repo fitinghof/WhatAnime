@@ -85,7 +85,7 @@ pub async fn update(
                             .unwrap(),
                     )));
                     let duration = start.elapsed();
-                    println!("Time to find animes: {:?}", duration);
+                    // println!("Time to find animes: {:?}", duration);
                     value
                 }
                 _ => Err(Error::NotASong),

@@ -182,6 +182,7 @@ impl DBAnime {
         self.thumbnail = trailer.map(|t| t.thumbnail.clone());
         self.release_year = anilist_data.season_year;
         self.release_season = anilist_data.season.as_ref().map(|s| s.to_owned() as i16);
+        self.last_updated = Utc::now();
     }
 
     pub fn update_all(
@@ -229,9 +230,6 @@ impl DBAnime {
         // track: Option<&TrackObject>,
         group_id: Option<i32>,
     ) -> Result<Vec<DBAnime>> {
-        if anisongs.is_empty() || anilists.is_empty() {
-            return Ok(vec![]);
-        }
         let mut anisongs_sorted: Vec<&Anime> = anisongs.iter().collect();
 
         anisongs_sorted.sort_by(|&a, &b| {
@@ -268,6 +266,14 @@ impl DBAnime {
                 }
             };
             db_animes.push(db_anime);
+        }
+        while anisong_index < anisongs_sorted.len() {
+            db_animes.push(Self::from_anisong_and_anilist(
+                anisongs_sorted[anisong_index],
+                None,
+                group_id,
+            ));
+            anisong_index += 1;
         }
         Ok(db_animes)
     }
