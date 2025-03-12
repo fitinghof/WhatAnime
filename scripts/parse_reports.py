@@ -14,6 +14,8 @@ from datetime import date, datetime
 
 from remove_song_link import remove_song_link
 
+from utility import clear_screen
+
 
 class Report(BaseModel):
     report_id: int
@@ -42,6 +44,8 @@ if __name__ == "__main__":
         exit()
 
     for report in reports:
+        clear_screen()
+
         cursor.execute(
             "SELECT * FROM animes WHERE ann_song_id = %s", (report.ann_song_id,)
         )
@@ -80,3 +84,5 @@ if __name__ == "__main__":
                 print("invalid input, did nothing")
     db.conn.commit()
     cursor.close()
+
+    print("All reports parsed : )")

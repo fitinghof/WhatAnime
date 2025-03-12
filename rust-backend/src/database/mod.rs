@@ -665,8 +665,8 @@ impl Database {
             hit_anime.extend(anisong_hit);
             more_by_artists.extend(anisong_more_by_artists);
 
-            more_by_artists.sort_by(|a, b| a.song_name.cmp(&b.song_name));
-            hit_anime.sort_by(|a, b| a.song_name.cmp(&b.song_name));
+            more_by_artists.sort_by(|a, b| a.title_eng.cmp(&b.title_eng));
+            hit_anime.sort_by(|a, b| a.title_eng.cmp(&b.title_eng));
 
             // Return result
             Ok(NewSong::Hit(SongHit {
@@ -780,7 +780,7 @@ impl Database {
                     };
 
                     // Promote anisong Anime to DBAnime using our gathered media
-                    let anime_hit =
+                    let mut anime_hit =
                         DBAnime::from_anisongs_and_anilists(&anisong_anime_hits, &media, group_id)
                             .unwrap();
 
@@ -798,8 +798,8 @@ impl Database {
                     self.update_or_add_animes(updates_and_adds, Some("Database".to_string()), None)
                         .await;
 
-                    more_by_artists.sort_by(|a, b| a.song_name.cmp(&b.song_name));
-                    hit_anime.sort_by(|a, b| a.song_name.cmp(&b.song_name));
+                    more_by_artists.sort_by(|a, b| a.title_eng.cmp(&b.title_eng));
+                    anime_hit.sort_by(|a, b| a.title_eng.cmp(&b.title_eng));
 
                     // return Hit
                     Ok(NewSong::Hit(SongHit {
