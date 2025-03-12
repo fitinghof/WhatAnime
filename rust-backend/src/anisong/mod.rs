@@ -223,7 +223,7 @@ impl AnisongClient {
         let mut evaluated_animes: Vec<(&Anime, f32)> = animes
             .iter()
             .map(|a| (a, process_similarity(&song_name, &a.songName)))
-            .sorted_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .sorted_by(|a, b| b.1.partial_cmp(&a.1).unwrap())
             .collect();
         let max_score = evaluated_animes[0].1;
         evaluated_animes.retain(|a| a.1 == max_score);
@@ -252,7 +252,7 @@ impl AnisongClient {
                     ) as f32,
                 )
             })
-            .sorted_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .sorted_by(|a, b| b.1.partial_cmp(&a.1).unwrap())
             .collect();
         let max_score = evaluated_animes[0].1;
         evaluated_animes.retain(|a| a.1 == max_score);

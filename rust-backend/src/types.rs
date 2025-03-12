@@ -48,17 +48,21 @@ pub enum AnimeType {
     OVA,
     ONA,
     Special,
+    Unknown,
 }
 
 impl AnimeType {
-    pub fn from_str(type_string: &str) -> Result<Self> {
+    pub fn from_str(type_string: Option<&str>) -> Self {
         match type_string {
-            "TV" => Ok(Self::TV),
-            "Movie" => Ok(Self::Movie),
-            "OVA" => Ok(Self::OVA),
-            "ONA" => Ok(Self::ONA),
-            "Special" => Ok(Self::Special),
-            _ => Err(Error::ParseError(type_string.to_string())),
+            Some(value) => match value {
+                "TV" => Self::TV,
+                "Movie" => Self::Movie,
+                "OVA" => Self::OVA,
+                "ONA" => Self::ONA,
+                "Special" => Self::Special,
+                _ => Self::Unknown,
+            },
+            None => Self::Unknown,
         }
     }
     pub fn from_db(discriminator: i16) -> Result<Self> {
@@ -198,17 +202,13 @@ pub struct FrontendAnimeEntry {
 }
 impl FrontendAnimeEntry {
     pub fn new(anisong_anime: &Anime, anilist_media: Option<&Media>) -> Result<Self> {
-        let anime_type = anisong_anime
-            .animeType
-            .as_ref()
-            .map(|t| AnimeType::from_str(&t).ok())
-            .flatten();
+        let anime_type = AnimeType::from_str(anisong_anime.animeType.as_ref().map(|a| a.as_str()));
         Ok(Self {
             title: anisong_anime.animeENName.clone(),
             title_japanese: anisong_anime.animeJPName.clone(),
             anime_index: AnimeIndex::from_str(&anisong_anime.animeCategory).unwrap(),
             track_index: AnimeTrackIndex::from_str(&anisong_anime.songType).unwrap(),
-            anime_type: anime_type,
+            anime_type: Some(anime_type),
             image_url: anilist_media
                 .map(|a| a.cover_image.as_ref().map(|a| a.medium.clone()))
                 .flatten()

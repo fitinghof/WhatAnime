@@ -3,7 +3,6 @@ use crate::anisong::Anime;
 // use axum_sessions::async_session::chrono::{DateTime, Utc};
 use crate::Result;
 use crate::japanese_processing::process_similarity;
-use crate::spotify::responses::TrackObject;
 use crate::types::{AnimeIndex, AnimeTrackIndex, AnimeType};
 use axum_sessions::async_session::chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -82,7 +81,10 @@ impl DBAnime {
             .map(|a| (a, process_similarity(&song_name, &a.song_name)))
             .sorted_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
             .collect();
+
+        evaluated_animes.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
         let max_score = evaluated_animes[0].1;
+
         evaluated_animes.retain(|a| a.1 == max_score);
         Ok((evaluated_animes.iter().map(|a| a.0).collect(), max_score))
     }
@@ -94,19 +96,13 @@ impl DBAnime {
         group_id: Option<i32>,
     ) -> Self {
         let anime_index = AnimeIndex::from_str(&anisong.animeCategory).unwrap();
-        let anime_type = AnimeType::from_str(&anisong.animeType.as_ref().unwrap()).unwrap();
+        let anime_type = AnimeType::from_str(anisong.animeType.as_ref().map(|a| a.as_str()));
         let cover_image = anilist.map(|a| a.cover_image.as_ref()).flatten();
         let studios = anilist
             .map(|a| a.studios.as_ref().map(|s| &s.nodes))
             .flatten();
         let tags = anilist.map(|a| a.tags.as_ref()).flatten();
         let trailer = anilist.map(|a| a.trailer.as_ref()).flatten();
-        // let spotify_artist_ids = track.map(|t| {
-        //     t.artists
-        //         .iter()
-        //         .map(|a| a.id.clone())
-        //         .collect::<Vec<String>>()
-        // });
         let track_index = AnimeTrackIndex::from_str(&anisong.songType).unwrap();
         Self {
             ann_id: anisong.annId,
@@ -194,21 +190,23 @@ impl DBAnime {
         new_anilist: &Vec<Media>,
         group_id: Option<i32>,
     ) {
-        if db_animes.is_empty() || new_anilist.is_empty() {
-            return;
-        }
-        db_animes.sort_by(|a, b| a.ann_song_id.cmp(&b.ann_song_id));
+        db_animes.sort_by(|a, b| {
+            a.anilist_id
+                .unwrap_or(AnilistID(-1))
+                .cmp(&b.anilist_id.unwrap_or(AnilistID(-1)))
+        });
+
         let mut anilist_index = 0;
         let mut db_anime_index = 0;
         while anilist_index < new_anilist.len() && db_anime_index < db_animes.len() {
             let media = &new_anilist[anilist_index];
-            let dbanime = &mut db_animes[db_anime_index];
+            let anisong = &mut db_animes[db_anime_index];
 
-            if dbanime.anilist_id.is_some_and(|a| a == media.id) {
+            if anisong.anilist_id.is_some_and(|a| a == media.id) {
                 db_anime_index += 1;
-                dbanime.update(media, group_id);
+                anisong.update(media, None);
             } else {
-                match dbanime.anilist_id.is_none_or(|id| id < media.id) {
+                match anisong.anilist_id.is_none_or(|id| id < media.id) {
                     true => {
                         db_anime_index += 1;
                     }
@@ -217,6 +215,11 @@ impl DBAnime {
                     }
                 }
             };
+        }
+        for dbanime in db_animes {
+            if dbanime.song_group_id.is_none() {
+                dbanime.song_group_id = group_id;
+            }
         }
     }
 
