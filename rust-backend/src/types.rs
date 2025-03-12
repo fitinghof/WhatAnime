@@ -196,6 +196,7 @@ pub struct FrontendAnimeEntry {
     pub linked_ids: AnimeListLinks,
     pub score: Option<i32>,
 
+    pub ann_song_id: i32,
     pub song_name: String,
     pub artist_ids: Vec<i32>,
     pub artist_names: Vec<String>,
@@ -224,6 +225,7 @@ impl FrontendAnimeEntry {
                 .map(|a| a.names[0].clone())
                 .collect(),
             score: anilist_media.map(|a| a.mean_score),
+            ann_song_id: anisong_anime.annSongId,
         })
     }
     pub fn from_db(db_anime: &DBAnime) -> Self {
@@ -249,6 +251,7 @@ impl FrontendAnimeEntry {
             artist_ids: db_anime.artists_ann_id.clone(),
             artist_names: db_anime.artist_names.iter().map(|a| a.clone()).collect(),
             score: db_anime.mean_score,
+            ann_song_id: db_anime.ann_song_id,
         }
     }
 

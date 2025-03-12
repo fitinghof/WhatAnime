@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-
+import ReportButton from "./report_window";
 export interface AnimeIndex {
   Season?: number,
   Movie?: number,
@@ -56,6 +56,7 @@ export interface AnimeInfo {
   linked_ids: LinkedIds;
   score?: number;
 
+  ann_song_id: number;
   song_name: string,
   artist_ids: Array<number>,
   artist_names: Array<String>,
@@ -152,6 +153,11 @@ const AnimeEntry: React.FC<AnimeEntryProps> = ({ anime, show_confirm_button, spo
             e.currentTarget.src = "/amq_icon_green.svg"; // Fallback to SVG
           }}
         />
+        {showMoreInfo && (
+          <div className="report-button-container">
+            <ReportButton ann_song_id={anime.ann_song_id} spotify_song_id={spotify_song_id} />
+          </div>
+        )}
       </div>
       <div className="anime-info">
         <div className="anime-title">

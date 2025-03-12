@@ -7,8 +7,6 @@ mod routes;
 mod spotify;
 mod types;
 
-use anilist::Media;
-use anilist::types::{AnilistID, TagID, URL};
 use anisong::AnisongClient;
 use axum::http::Method;
 use axum::http::header::{ACCEPT, AUTHORIZATION};
@@ -21,7 +19,7 @@ use std::{env, sync::Arc};
 use tower_http::cors::CorsLayer;
 use tower_sessions::{MemoryStore, SessionManagerLayer, cookie::SameSite};
 
-use routes::{callback, confirm_anime, login, update};
+use routes::{callback, confirm_anime, login, report, update};
 
 struct AppState {
     client_id: String,
@@ -78,6 +76,7 @@ async fn main() {
         .route("/api/login", get(login))
         .route("/callback", get(callback))
         .route("/api/confirm_anime", post(confirm_anime))
+        .route("/api/report", post(report))
         .layer(session_layer)
         .layer(
             CorsLayer::new()
