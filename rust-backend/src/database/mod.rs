@@ -694,13 +694,12 @@ impl Database {
                 if score > accuracy_cutoff {
                     // get data for the best song
                     let best_song_name = best[0].songName.clone();
-
                     let best_artist_ids: Vec<i32> = best[0].artists.iter().map(|a| a.id).collect();
 
                     let mut artist_set = HashSet::with_capacity(best[0].artists.len());
 
-                    artists_ann_id.iter().for_each(|id| {
-                        artist_set.insert(*id);
+                    artists_ann_id.iter().for_each(|&id| {
+                        artist_set.insert(id);
                     });
 
                     // Since we were not certain that we got the correct anime from our database,
@@ -725,7 +724,7 @@ impl Database {
 
                     let (mut anisong_anime_hits, mut anisong_anime_more): (Vec<Anime>, Vec<Anime>) =
                         anisongs.into_iter().partition(|a| {
-                            a.artists.iter().map(|a| a.id).collect::<Vec<i32>>() == artists_ann_id
+                            a.artists.iter().map(|a| a.id).collect::<Vec<i32>>() == best_artist_ids
                                 && a.songName == best_song_name
                         });
 

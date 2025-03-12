@@ -348,36 +348,56 @@ a {
     border-radius: 0.5rem;
     box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
     width: 24rem;
+    height: 40%;
+    min-height: 200px;
+    align-items: center;
+    justify-content: center;
+    display: flex;
+    flex-direction: column;
 }
 
 .report-header {
     font-size: 24px;
+    text-align: center;
+    width: 100%;
 }
 
 .report-textarea {
-    width: 100%;
+    color: rgb(0, 0, 0);
+    flex-grow: 1;
+    background-color: #dfdfdf;
+    width: 90%;
     padding: 0.5rem;
     border: 1px solid #ccc;
     border-radius: 0.5rem;
     resize: none;
+    display: block;
+    margin: 1rem auto;
 }
 
 .popup-buttons {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     margin-top: 1rem;
+    gap: 1rem;
+    width: 95%;
+    margin-left: auto;
+    margin-right: auto;
+    /* Ensures it spans full width */
 }
 
 .popup-cancel,
 .popup-submit {
+    flex-grow: 1;
     padding: 0.5rem 1rem;
     border-radius: 0.5rem;
     cursor: pointer;
 }
 
 .popup-cancel {
+    color: #000000;
     background: #c99343;
-    border: 1px solid #ccc;
+    border: none;
     margin-right: 0.5rem;
 }
 
