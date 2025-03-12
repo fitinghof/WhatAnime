@@ -155,7 +155,7 @@ impl DBAnime {
         }
     }
 
-    pub fn update(&mut self, anilist_data: &Media, group_id: Option<i32>) {
+    pub fn update(&mut self, anilist_data: &Media) {
         let cover_image = anilist_data.cover_image.as_ref();
         let studios = anilist_data.studios.as_ref().map(|s| &s.nodes);
         let tags = anilist_data.tags.as_ref();
@@ -182,7 +182,6 @@ impl DBAnime {
         self.thumbnail = trailer.map(|t| t.thumbnail.clone());
         self.release_year = anilist_data.season_year;
         self.release_season = anilist_data.season.as_ref().map(|s| s.to_owned() as i16);
-        self.song_group_id = group_id;
     }
 
     pub fn update_all(
@@ -204,7 +203,7 @@ impl DBAnime {
 
             if anisong.anilist_id.is_some_and(|a| a == media.id) {
                 db_anime_index += 1;
-                anisong.update(media, None);
+                anisong.update(media);
             } else {
                 match anisong.anilist_id.is_none_or(|id| id < media.id) {
                     true => {
