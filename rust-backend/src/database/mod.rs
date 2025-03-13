@@ -237,7 +237,8 @@ impl Database {
             thumbnail = COALESCE(EXCLUDED.thumbnail, animes.thumbnail),
             release_season = COALESCE(EXCLUDED.release_season, animes.release_season),
             release_year = COALESCE(EXCLUDED.release_year, animes.release_year),
-            song_group_id = COALESCE(EXCLUDED.song_group_id, animes.song_group_id)"#
+            song_group_id = COALESCE(EXCLUDED.song_group_id, animes.song_group_id),
+            last_updated = EXCLUDED.last_updated"#
             );
 
         let query = query_builder.build();
