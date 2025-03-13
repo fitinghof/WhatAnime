@@ -13,8 +13,10 @@ use crate::types::{
 };
 use crate::{Error, Result};
 use axum_sessions::async_session::chrono::{Duration, Utc};
+use axum_sessions::async_session::log::{Level, info, log};
 use databasetypes::{DBAnime, DBArtist, SongGroup, SongGroupLink};
 use itertools::Itertools;
+use regex::{self, Regex};
 use regex_search::create_artist_regex;
 use reqwest::StatusCode;
 use sqlx::postgres::PgPoolOptions;
@@ -150,6 +152,9 @@ impl Database {
         from_user: Option<String>,
         from_user_mail: Option<String>,
     ) {
+        if animes.is_empty() {
+            return;
+        }
         println!("Trying to add or update {} animes", animes.len());
         let mut tx = self.pool.begin().await.unwrap();
         for anime in animes {
@@ -444,7 +449,7 @@ impl Database {
             artists.iter().map(|a| a.ann_id).collect()
         } else {
             let artists = sqlx::query_as::<Postgres, DBArtist>(
-                "SELECT * FROM public.artists WHERE EXISTS (
+                "SELECT * FROM artists WHERE EXISTS (
                     SELECT 1
                     FROM unnest(names) AS name WHERE name ~* $1);",
             )
@@ -455,13 +460,19 @@ impl Database {
             .await
             .unwrap();
 
+            self.try_add_artists_variation(&artists, &track.artists)
+                .await;
+
             artists.iter().map(|a| a.ann_id).collect()
         };
 
-        let more_by_artists = self
-            .get_animes_by_artists_ann_ids(&artist_ann_ids)
-            .await
-            .unwrap();
+        let mut temp = artist_ann_ids.clone();
+        artists
+            .iter()
+            .filter_map(|a| a.groups_ids.clone())
+            .for_each(|g| temp.extend(g));
+
+        let more_by_artists = self.get_animes_by_artists_ann_ids(&temp).await.unwrap();
 
         if anime.len() > 0 {
             Ok((anime, more_by_artists, artist_ann_ids, artists, 100.0))
@@ -487,6 +498,45 @@ impl Database {
         } else {
             Ok((vec![], vec![], artist_ann_ids, artists, 0.0))
         }
+    }
+
+    pub async fn try_add_artists_variation(
+        &self,
+        anisong_artists: &Vec<DBArtist>,
+        spotify_artists: &Vec<SimplifiedArtist>,
+    ) {
+        let mut artists_to_add = Vec::new();
+
+        for artist in anisong_artists {
+            let artist_pattern = create_artist_regex(artist.names.iter().collect());
+            let re = Regex::new(&artist_pattern).unwrap();
+            for sartist in spotify_artists {
+                if re.is_match(&sartist.name) {
+                    let mut new_artist = artist.clone();
+                    new_artist.spotify_id = sartist.id.clone();
+                    artists_to_add.push(new_artist);
+                }
+            }
+        }
+        let mut tx = self.pool.begin().await.unwrap();
+
+        for new_artist in artists_to_add {
+            let _ = sqlx::query!(
+                r#"INSERT INTO artists (spotify_id, ann_id, names, groups_ids, members)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (spotify_id) DO NOTHING"#,
+                &new_artist.spotify_id,
+                &new_artist.ann_id,
+                &new_artist.names,
+                &new_artist.groups_ids.unwrap_or(vec![]),
+                &new_artist.members.unwrap_or(vec![]),
+            )
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+        }
+
+        tx.commit().await.unwrap();
     }
 
     pub async fn try_add_artists(
@@ -607,7 +657,7 @@ impl Database {
             );
 
             // split anisongs into hits and misses and add more ids
-            let (mut anisong_anime_hits, mut anisong_anime_more): (Vec<Anime>, Vec<Anime>) =
+            let (anisong_anime_hits, anisong_anime_more): (Vec<Anime>, Vec<Anime>) =
                 anisong_animes.into_iter().partition(|a| {
                     if a.linked_ids.anilist.is_some() {
                         anilist_ids.push(a.linked_ids.anilist.unwrap());
@@ -787,7 +837,6 @@ impl Database {
                         DBAnime::from_anisongs_and_anilists(&anisong_anime_more, &media, None)
                             .unwrap();
 
-                    // send only stuff that should be updated to the database
                     let mut updates_and_adds: Vec<&DBAnime> = anime_hit.iter().collect();
                     updates_and_adds.extend(more_by_artists_anisong.iter());
                     updates_and_adds.extend(more_by_artists.iter().filter(|a| {
@@ -797,6 +846,7 @@ impl Database {
                     self.update_or_add_animes(updates_and_adds, Some("Database".to_string()), None)
                         .await;
 
+                    more_by_artists.extend(more_by_artists_anisong);
                     more_by_artists.sort_by(|a, b| a.title_eng.cmp(&b.title_eng));
                     anime_hit.sort_by(|a, b| a.title_eng.cmp(&b.title_eng));
 

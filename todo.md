@@ -9,8 +9,11 @@
  * Rework the raw anisong search
 
  * Fix so that it will only send stuff that really needs to be updated to the update_or_add func
+ * Anisong might do search by artist differently leading to the miss
+ * Part of the issue seems to be not everything actually getting added to the db
 
  * Not to self: Don't make a database migration in a development branch as that will cause a vesion mismatch
  * If I do, 
  'sqlx migrate info' for local checksum of failed
   UPDATE _sqlx_migrations SET checksum = E'\\xlocal_checksum' WHERE version = failed version
+

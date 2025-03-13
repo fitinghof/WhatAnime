@@ -279,7 +279,7 @@ impl DBAnime {
     }
 }
 
-#[derive(FromRow, Serialize, Deserialize, Debug)]
+#[derive(FromRow, Serialize, Deserialize, Debug, Clone)]
 pub struct DBArtist {
     pub spotify_id: String,
     pub ann_id: i32,
