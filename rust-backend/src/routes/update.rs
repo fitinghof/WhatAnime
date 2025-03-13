@@ -1,6 +1,6 @@
 use std::{
     sync::Arc,
-    time::{Instant, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use axum::{
@@ -85,7 +85,9 @@ pub async fn update(
                             .unwrap(),
                     )));
                     let duration = start.elapsed();
-                    // println!("Time to find animes: {:?}", duration);
+                    if duration > Duration::from_secs(1) {
+                        println!("Time to find animes: {:?}", duration);
+                    }
                     value
                 }
                 _ => Err(Error::NotASong),
