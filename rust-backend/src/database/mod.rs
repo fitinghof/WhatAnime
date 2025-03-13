@@ -20,7 +20,7 @@ use regex::{self, Regex};
 use regex_search::create_artist_regex;
 use reqwest::StatusCode;
 use sqlx::postgres::PgPoolOptions;
-use sqlx::{Pool, Postgres, Transaction};
+use sqlx::{Pool, Postgres, QueryBuilder, Transaction, query};
 use std::cmp::max;
 use std::collections::HashSet;
 use std::env;
@@ -156,93 +156,93 @@ impl Database {
             return;
         }
         println!("Trying to add or update {} animes", animes.len());
-        let mut tx = self.pool.begin().await.unwrap();
-        for anime in animes {
-            let _ = sqlx::query::<Postgres>(
-                r#"
-                INSERT INTO animes (
-                    ann_id, title_eng, title_jpn, index_type, index_number, anime_type, episodes, mean_score,
-                    banner_image, cover_image_color, cover_image_medium, cover_image_large, cover_image_extra_large,
-                    media_format, genres, source, studio_ids, studio_names, studio_urls, tag_ids, tag_names, trailer_id,
-                    trailer_site, thumbnail, release_season, release_year,
-                    ann_song_id, song_name, spotify_artist_ids, artist_names, artists_ann_id, composers_ann_id,
-                    arrangers_ann_id, track_index_type, track_index_number, mal_id, anilist_id, anidb_id, kitsu_id, 
-                    song_group_id, from_user_name, from_user_mail
-                )
-                VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                    $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-                    $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
-                    $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42
-                )
-                ON CONFLICT (ann_song_id) DO UPDATE SET 
-                episodes = COALESCE(EXCLUDED.episodes, animes.episodes),
-                mean_score = COALESCE(EXCLUDED.mean_score, animes.mean_score),
-                banner_image = COALESCE(EXCLUDED.banner_image, animes.banner_image),
-                cover_image_color = COALESCE(EXCLUDED.cover_image_color, animes.cover_image_color),
-                cover_image_medium = COALESCE(EXCLUDED.cover_image_medium, animes.cover_image_medium),
-                cover_image_large = COALESCE(EXCLUDED.cover_image_large, animes.cover_image_large),
-                cover_image_extra_large = COALESCE(EXCLUDED.cover_image_extra_large, animes.cover_image_extra_large),
-                media_format = COALESCE(EXCLUDED.media_format, animes.media_format),
-                genres = COALESCE(EXCLUDED.genres, animes.genres),
-                source = COALESCE(EXCLUDED.source, animes.source),
-                studio_ids = COALESCE(EXCLUDED.studio_ids, animes.studio_ids),
-                studio_names = COALESCE(EXCLUDED.studio_names, animes.studio_names),
-                studio_urls = COALESCE(EXCLUDED.studio_urls, animes.studio_urls),
-                tag_ids = COALESCE(EXCLUDED.tag_ids, animes.tag_ids),
-                tag_names = COALESCE(EXCLUDED.tag_names, animes.tag_names),
-                trailer_id = COALESCE(EXCLUDED.trailer_id, animes.trailer_id),
-                trailer_site = COALESCE(EXCLUDED.trailer_site, animes.trailer_site),
-                thumbnail = COALESCE(EXCLUDED.thumbnail, animes.thumbnail),
-                release_season = COALESCE(EXCLUDED.release_season, animes.release_season),
-                release_year = COALESCE(EXCLUDED.release_year, animes.release_year),
-                song_group_id = COALESCE(EXCLUDED.song_group_id, animes.song_group_id)
-            "#)
-            .bind(&anime.ann_id)
-            .bind(&anime.title_eng)
-            .bind(&anime.title_jpn)
-            .bind(&anime.index_type)
-            .bind(&anime.index_number)
-            .bind(&anime.anime_type)
-            .bind(&anime.episodes)
-            .bind(&anime.mean_score)
-            .bind(&anime.banner_image)
-            .bind(&anime.cover_image_color)
-            .bind(&anime.cover_image_medium)
-            .bind(&anime.cover_image_large)
-            .bind(&anime.cover_image_extra_large)
-            .bind(&anime.media_format)
-            .bind(&anime.genres)
-            .bind(&anime.source)
-            .bind(&anime.studio_ids)
-            .bind(&anime.studio_names)
-            .bind(&anime.studio_urls)
-            .bind(&anime.tag_ids)
-            .bind(&anime.tag_names)
-            .bind(&anime.trailer_id)
-            .bind(&anime.trailer_site)
-            .bind(&anime.thumbnail)
-            .bind(&anime.release_season)
-            .bind(&anime.release_year)
-            .bind(&anime.ann_song_id)
-            .bind(&anime.song_name)
-            .bind(&anime.spotify_artist_ids)
-            .bind(&anime.artist_names)
-            .bind(&anime.artists_ann_id)
-            .bind(&anime.composers_ann_id)
-            .bind(&anime.arrangers_ann_id)
-            .bind(&anime.track_index_type)
-            .bind(&anime.track_index_number)
-            .bind(&anime.mal_id)
-            .bind(&anime.anilist_id)
-            .bind(&anime.anidb_id)
-            .bind(&anime.kitsu_id)
-            .bind(&anime.song_group_id)
-            .bind(&from_user)
-            .bind(&from_user_mail)
-            .execute(&mut *tx).await.unwrap();
-        }
-        tx.commit().await.unwrap();
+
+        let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
+            r#"INSERT INTO animes (
+                ann_id, title_eng, title_jpn, index_type, index_number, anime_type, episodes, mean_score,
+                banner_image, cover_image_color, cover_image_medium, cover_image_large, cover_image_extra_large,
+                media_format, genres, source, studio_ids, studio_names, studio_urls, tag_ids, tag_names, trailer_id,
+                trailer_site, thumbnail, release_season, release_year,
+                ann_song_id, song_name, spotify_artist_ids, artist_names, artists_ann_id, composers_ann_id,
+                arrangers_ann_id, track_index_type, track_index_number, mal_id, anilist_id, anidb_id, kitsu_id, 
+                song_group_id, from_user_name, from_user_mail
+            ) "#,
+        );
+
+        query_builder.push_values(animes, |mut builder, anime| {
+            builder
+                .push_bind(&anime.ann_id)
+                .push_bind(&anime.title_eng)
+                .push_bind(&anime.title_jpn)
+                .push_bind(&anime.index_type)
+                .push_bind(&anime.index_number)
+                .push_bind(&anime.anime_type)
+                .push_bind(&anime.episodes)
+                .push_bind(&anime.mean_score)
+                .push_bind(&anime.banner_image)
+                .push_bind(&anime.cover_image_color)
+                .push_bind(&anime.cover_image_medium)
+                .push_bind(&anime.cover_image_large)
+                .push_bind(&anime.cover_image_extra_large)
+                .push_bind(&anime.media_format)
+                .push_bind(&anime.genres)
+                .push_bind(&anime.source)
+                .push_bind(&anime.studio_ids)
+                .push_bind(&anime.studio_names)
+                .push_bind(&anime.studio_urls)
+                .push_bind(&anime.tag_ids)
+                .push_bind(&anime.tag_names)
+                .push_bind(&anime.trailer_id)
+                .push_bind(&anime.trailer_site)
+                .push_bind(&anime.thumbnail)
+                .push_bind(&anime.release_season)
+                .push_bind(&anime.release_year)
+                .push_bind(&anime.ann_song_id)
+                .push_bind(&anime.song_name)
+                .push_bind(&anime.spotify_artist_ids)
+                .push_bind(&anime.artist_names)
+                .push_bind(&anime.artists_ann_id)
+                .push_bind(&anime.composers_ann_id)
+                .push_bind(&anime.arrangers_ann_id)
+                .push_bind(&anime.track_index_type)
+                .push_bind(&anime.track_index_number)
+                .push_bind(&anime.mal_id)
+                .push_bind(&anime.anilist_id)
+                .push_bind(&anime.anidb_id)
+                .push_bind(&anime.kitsu_id)
+                .push_bind(&anime.song_group_id)
+                .push_bind(&from_user)
+                .push_bind(&from_user_mail);
+        });
+
+        query_builder.push(
+        r#"ON CONFLICT (ann_song_id) DO UPDATE SET 
+            episodes = COALESCE(EXCLUDED.episodes, animes.episodes),
+            mean_score = COALESCE(EXCLUDED.mean_score, animes.mean_score),
+            banner_image = COALESCE(EXCLUDED.banner_image, animes.banner_image),
+            cover_image_color = COALESCE(EXCLUDED.cover_image_color, animes.cover_image_color),
+            cover_image_medium = COALESCE(EXCLUDED.cover_image_medium, animes.cover_image_medium),
+            cover_image_large = COALESCE(EXCLUDED.cover_image_large, animes.cover_image_large),
+            cover_image_extra_large = COALESCE(EXCLUDED.cover_image_extra_large, animes.cover_image_extra_large),
+            media_format = COALESCE(EXCLUDED.media_format, animes.media_format),
+            genres = COALESCE(EXCLUDED.genres, animes.genres),
+            source = COALESCE(EXCLUDED.source, animes.source),
+            studio_ids = COALESCE(EXCLUDED.studio_ids, animes.studio_ids),
+            studio_names = COALESCE(EXCLUDED.studio_names, animes.studio_names),
+            studio_urls = COALESCE(EXCLUDED.studio_urls, animes.studio_urls),
+            tag_ids = COALESCE(EXCLUDED.tag_ids, animes.tag_ids),
+            tag_names = COALESCE(EXCLUDED.tag_names, animes.tag_names),
+            trailer_id = COALESCE(EXCLUDED.trailer_id, animes.trailer_id),
+            trailer_site = COALESCE(EXCLUDED.trailer_site, animes.trailer_site),
+            thumbnail = COALESCE(EXCLUDED.thumbnail, animes.thumbnail),
+            release_season = COALESCE(EXCLUDED.release_season, animes.release_season),
+            release_year = COALESCE(EXCLUDED.release_year, animes.release_year),
+            song_group_id = COALESCE(EXCLUDED.song_group_id, animes.song_group_id)"#
+            );
+
+        let query = query_builder.build();
+
+        query.execute(&self.pool).await.unwrap();
     }
 
     pub async fn add_anime(
