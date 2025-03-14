@@ -3,24 +3,19 @@ pub mod find_anime_no_db;
 pub mod regex_search;
 
 use crate::anilist::Media;
-use crate::anilist::types::{AnilistID, TagID, URL};
-use crate::anisong::{Anime, AnisongClient, Artist, ArtistIDSearchRequest};
+use crate::anilist::types::AnilistID;
+use crate::anisong::{Anime, AnisongClient, Artist};
 use crate::japanese_processing::process_similarity;
 use crate::spotify::responses::{SimplifiedArtist, TrackObject};
-use crate::types::{
-    AnimeIndex, AnimeTrackIndex, AnimeType, FrontendAnimeEntry, NewSong, SongHit, SongInfo,
-    SongMiss,
-};
+use crate::types::{FrontendAnimeEntry, NewSong, SongHit, SongInfo, SongMiss};
 use crate::{Error, Result};
 use axum_sessions::async_session::chrono::{Duration, Utc};
-use axum_sessions::async_session::log::{Level, info, log};
 use databasetypes::{DBAnime, DBArtist, SongGroup, SongGroupLink};
-use itertools::Itertools;
 use regex::{self, Regex};
 use regex_search::create_artist_regex;
 use reqwest::StatusCode;
 use sqlx::postgres::PgPoolOptions;
-use sqlx::{Pool, Postgres, QueryBuilder, Transaction, query};
+use sqlx::{Pool, Postgres, QueryBuilder};
 use std::cmp::max;
 use std::collections::HashSet;
 use std::env;
@@ -155,6 +150,7 @@ impl Database {
         if animes.is_empty() {
             return;
         }
+
         println!("Trying to add or update {} animes", animes.len());
 
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(

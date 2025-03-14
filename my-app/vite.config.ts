@@ -9,11 +9,12 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://89.160.26.72:8000",
+        target: "http://whatanime.ddns.net:8000",
         changeOrigin: true,
         secure: false,
       }
-    }
+    },
+    allowedHosts: ['whatanime.ddns.net'],
   },
   plugins: [react()],
 })

@@ -258,17 +258,17 @@ impl FrontendAnimeEntry {
         }
     }
 
-    pub async fn from_anisong(anisong: &Anime) -> Result<Self> {
-        let media = if anisong.linked_ids.anilist.is_some() {
-            Media::fetch_one(anisong.linked_ids.anilist.unwrap()).await
-        } else {
-            None
-        };
-        Ok(Self::new(&anisong, media.as_ref()).unwrap())
-    }
+    // pub async fn from_anisong(anisong: &Anime) -> Result<Self> {
+    //     let media = if anisong.linked_ids.anilist.is_some() {
+    //         Media::fetch_one(anisong.linked_ids.anilist.unwrap()).await
+    //     } else {
+    //         None
+    //     };
+    //     Ok(Self::new(&anisong, media.as_ref()).unwrap())
+    // }
 
     pub async fn from_anisongs(anisongs: &Vec<&Anime>) -> Result<Vec<FrontendAnimeEntry>> {
-        let (mut owned_anisongs, mut no_anilist_ids): (Vec<&Anime>, Vec<&Anime>) = anisongs
+        let (mut owned_anisongs, no_anilist_ids): (Vec<&Anime>, Vec<&Anime>) = anisongs
             .iter()
             .partition(|&&a| a.linked_ids.anilist.is_some());
         let mut anilist_animes = Media::fetch_many(

@@ -32,7 +32,3 @@ lazy_static = "1.5.0"
 [[bin]]
 name = "main"
 path = "src/main.rs"
-
-# [[bin]]
-# name = "script"
-# path = "src/script.rs"

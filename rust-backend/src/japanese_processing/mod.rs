@@ -1,19 +1,6 @@
 use fuzzywuzzy::fuzz;
 use kakasi::{self, IsJapanese};
 use regex::Regex;
-use std::collections::HashSet;
-
-fn jaccard_similarity(str1: &str, str2: &str) -> f64 {
-    let set1: HashSet<char> = str1.chars().collect();
-    let set2: HashSet<char> = str2.chars().collect();
-    let intersection = set1.intersection(&set2).count() as f64;
-    let union = set1.union(&set2).count() as f64;
-    if union == 0.0 {
-        0.0
-    } else {
-        intersection / union
-    }
-}
 
 pub fn process_possible_japanese(japanese: &str) -> String {
     if kakasi::is_japanese(japanese) == IsJapanese::False {
@@ -30,12 +17,13 @@ pub fn normalize_text(text: &str) -> String {
     return deunicode::deunicode(&new_text);
 }
 
+#[allow(dead_code)]
 fn remove_vowels(word: &str) -> String {
     word.chars()
         .filter(|&c| !"aeiouAEIOU".contains(c))
         .collect()
 }
-
+#[allow(dead_code)]
 fn remove_consonants(word: &str) -> String {
     word.chars().filter(|&c| "aeiouAEIOU".contains(c)).collect()
 }

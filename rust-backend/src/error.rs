@@ -1,7 +1,4 @@
 // error.rs
-
-use std::fmt::Display;
-
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use sqlx::migrate::MigrateError;

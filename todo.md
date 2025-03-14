@@ -12,6 +12,8 @@
 
  * make artists update their data every now and then
 
+ * Might want to add a last updated for each artist so that perhaps once a week or something I fetch every anime that artist has made and unless it is time for that update I depend fully on the database to choose atleast more_by_artists 
+
  * Fix so that hit animes will only get updated if there is a need for the update. Not to big of a problem but currently uneccessary database query.
 
  * When we get a database semi miss and the hit anime, as decided by anisongdb is something with artists not in the spotify song we are listening to all those songs will be counted as new

@@ -11,10 +11,12 @@ pub struct SpotifyToken {
 
 // {"error":"unsupported_grant_type","error_description":"grant_type parameter is missing"}
 #[derive(serde::Deserialize)]
+#[allow(dead_code)]
 pub struct SpotifyTokenError {
     pub error: String,
     pub error_description: String,
 }
+#[allow(dead_code)]
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
 pub enum SpotifyTokenResponse {
@@ -22,6 +24,7 @@ pub enum SpotifyTokenResponse {
     Error(SpotifyTokenError),
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct Device {
     pub id: Option<String>,
@@ -34,11 +37,12 @@ pub struct Device {
     pub supports_volume: bool,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct ExternalUrls {
-    pub spotify: String
+    pub spotify: String,
 }
-
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct Context {
     pub r#type: String,
@@ -46,7 +50,7 @@ pub struct Context {
     pub external_urls: ExternalUrls,
     pub uri: String,
 }
-
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct Image {
     pub url: String,
@@ -54,11 +58,13 @@ pub struct Image {
     pub width: u32,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct Restrictions {
-    pub reason: String
+    pub reason: String,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct SimplifiedArtist {
     pub external_urls: ExternalUrls,
@@ -66,9 +72,9 @@ pub struct SimplifiedArtist {
     pub id: String,
     pub name: String,
     pub r#type: String,
-    pub uri: String
+    pub uri: String,
 }
-
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct Album {
     pub album_type: String,
@@ -86,17 +92,17 @@ pub struct Album {
     pub uri: String,
     pub artists: Vec<SimplifiedArtist>,
 }
-
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct ExternalIds {
     pub isrc: Option<String>,
     pub ean: Option<String>,
     pub upc: Option<String>,
 }
-
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct LinkedFrom {}
-
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct TrackObject {
     pub album: Album,
@@ -120,20 +126,20 @@ pub struct TrackObject {
     pub r#type: String,
     pub uri: String,
 }
-
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct EpisodeObject {
-    somethingthatmostcertaintlyaintthere: String
-    // Litteraly dont care
+    somethingthatmostcertaintlyaintthere: String, // Litteraly dont care
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(untagged)]
 pub enum Item {
     TrackObject(TrackObject),
     EpisodeObject(EpisodeObject),
 }
-
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct Actions {
     pub interrupting_playback: Option<bool>,
@@ -147,7 +153,7 @@ pub struct Actions {
     pub toggling_repeat_track: Option<bool>,
     pub transfering_playback: Option<bool>,
 }
-
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct CurrentlyPlayingResponse {
     pub device: Option<Device>,
@@ -159,7 +165,7 @@ pub struct CurrentlyPlayingResponse {
     pub is_playing: Option<bool>,
     pub item: Item,
     pub currently_playing_type: Option<String>,
-    pub actions: Option<Actions>
+    pub actions: Option<Actions>,
 }
 
 pub enum CurrentlyPlayingResponses {
@@ -173,5 +179,4 @@ pub enum CurrentlyPlayingResponses {
 pub struct SpotifyUser {
     pub display_name: Option<String>,
     pub email: Option<String>,
-
 }

@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use crate::Result;
 use num_enum::TryFromPrimitive;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};

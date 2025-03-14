@@ -118,13 +118,8 @@ impl AnisongClient {
         if response.status().is_success() {
             Ok(response.json().await?)
         } else {
-            let status = response.status();
             println!("{}", response.text().await?);
             Ok(vec![])
-            // Err(Error::BadRequest {
-            //     url: Self::SEARCH_REQUEST_URL.to_string(),
-            //     status_code: status,
-            // })
         }
     }
 

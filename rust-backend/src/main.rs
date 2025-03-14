@@ -24,7 +24,7 @@ use routes::{callback, confirm_anime, login, report, update};
 struct AppState {
     client_id: String,
     client_secret: String,
-    ip: String,
+    // ip: String,
     redirect_uri: String,
     anisong_db: AnisongClient,
     database: Database,
@@ -32,14 +32,14 @@ struct AppState {
 
 impl AppState {
     async fn load() -> Self {
-        let ip = env::var("ip").unwrap();
+        // let ip = env::var("ip").unwrap();
         let database = Database::new().await;
         database.run_migrations().await.unwrap();
         return Self {
             client_id: env::var("ClientID").unwrap(),
             client_secret: env::var("ClientSecret").unwrap(),
-            redirect_uri: format!("http://{ip}:8000/callback"),
-            ip,
+            redirect_uri: format!("http://whatanime.ddns.net:8000/callback"),
+            // ip,
             anisong_db: AnisongClient::new(),
             database,
         };
@@ -63,10 +63,7 @@ async fn main() {
 
     let allowed_origins = [
         "http://localhost:5173".parse::<HeaderValue>().unwrap(),
-        "http://127.0.0.1:5173".parse::<HeaderValue>().unwrap(),
-        "http://127.0.0.1:8000".parse::<HeaderValue>().unwrap(),
-        "http://localhost:8000".parse::<HeaderValue>().unwrap(),
-        format!("http://{}:5173", &shared_state.ip)
+        "http://whatanime.ddns.net:5173"
             .parse::<HeaderValue>()
             .unwrap(),
     ];

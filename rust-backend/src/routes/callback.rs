@@ -41,7 +41,6 @@ pub async fn callback(
         println!("Sate missmatch occured, probably");
         println!("{}, {:?}", params.state, session_state);
         return Err(axum::http::StatusCode::BAD_REQUEST);
-
     }
 
     let client_creds = format!("{}:{}", app_state.client_id, app_state.client_secret);
@@ -96,7 +95,7 @@ pub async fn callback(
 
         session.save().await.unwrap();
 
-        return Ok(Redirect::to(&format!("http://{}:5173/", &app_state.ip)));
+        return Ok(Redirect::to("http://whatanime.ddns.net:5173/"));
     }
 
     return Err(axum::http::StatusCode::BAD_REQUEST);
