@@ -631,9 +631,9 @@ impl Database {
         // Filter out initial duplicates, prefering stuff from our own database and hits over more by artist.
         let mut anime_set = HashSet::with_capacity(anime_hits_db.len() + more_by_artist_db.len());
         anime_hits_db.retain(|a| anime_set.insert(a.ann_song_id));
-        more_by_artist_db.retain(|a| anime_set.insert(a.ann_song_id));
-
         anime_hits_anisong.retain(|a| anime_set.insert(a.annSongId));
+
+        more_by_artist_db.retain(|a| anime_set.insert(a.ann_song_id));
         more_by_artist_anisong.retain(|a| anime_set.insert(a.annSongId));
 
         // fetch stuff from anisong that might already be in our database
@@ -716,6 +716,7 @@ impl Database {
         let promoted_anisong_hit =
             DBAnime::from_anisongs_and_anilists(&anime_hits_anisong, &media, song_group_id)
                 .unwrap();
+
         let promoted_anisong_more_by_artist =
             DBAnime::from_anisongs_and_anilists(&more_by_artist_anisong, &media, None).unwrap();
 
@@ -746,56 +747,22 @@ impl Database {
         anisong_db: &AnisongClient,
         accuracy_cutoff: f32,
     ) -> Result<NewSong> {
-        let (mut hit_anime, mut more_by_artists, artists_ann_id, artists_searched, certainty) =
+        let (hit_anime, more_by_artists, artists_ann_id, artists_searched, certainty) =
             self.db_full_search(track).await.unwrap();
 
         if certainty == 100.0 {
-            let mut anisong_animes = anisong_db
+            let anisong_animes = anisong_db
                 .get_animes_by_artists_ids(artists_ann_id)
                 .await
                 .unwrap();
 
-            let max_unique = max(
-                hit_anime.len() + more_by_artists.len(),
-                anisong_animes.len(),
-            );
-
-            let mut anime_set = HashSet::with_capacity(max_unique);
-
-            // filter out duplicates
-            hit_anime.retain(|a| anime_set.insert(a.ann_song_id));
-            more_by_artists.retain(|a| anime_set.insert(a.ann_song_id));
-            anisong_animes.retain(|a| anime_set.insert(a.annSongId));
-
-            // Get anilist ids for animes that need updates or extra info
-            let mut anilist_ids: Vec<AnilistID> = more_by_artists
-                .iter()
-                .filter(|a| a.last_updated + Self::UPDATE_TIME < Utc::now())
-                .filter_map(|a| a.anilist_id)
-                .collect();
-
-            // Same
-            anilist_ids.extend(
-                hit_anime
-                    .iter()
-                    .filter(|a| a.last_updated + Self::UPDATE_TIME < Utc::now())
-                    .filter_map(|a| a.anilist_id),
-            );
-
             // split anisongs into hits and misses and add more ids
             let (anisong_anime_hits, anisong_anime_more): (Vec<Anime>, Vec<Anime>) =
                 anisong_animes.into_iter().partition(|a| {
-                    if a.linked_ids.anilist.is_some() {
-                        anilist_ids.push(a.linked_ids.anilist.unwrap());
-                    }
-
                     a.artists.iter().map(|a| a.id).collect::<Vec<i32>>()
                         == hit_anime[0].artists_ann_id
                         && a.songName == hit_anime[0].song_name
                 });
-
-            // Fetch extra Anilist media
-            let anilists = Media::fetch_many(anilist_ids).await.unwrap();
 
             // get group id.
             let group_id = self
@@ -806,40 +773,16 @@ impl Database {
                 )
                 .await;
 
-            // update arrays to contain new info
-            DBAnime::update_all(&mut hit_anime, &anilists, Some(group_id));
-            DBAnime::update_all(&mut more_by_artists, &anilists, None);
-
-            // seperate out the updateted info to send to database
-            let mut update_animes: Vec<&DBAnime> = more_by_artists
-                .iter()
-                .filter(|a| {
-                    a.last_updated + Self::UPDATE_TIME < Utc::now() && a.anilist_id.is_some()
-                })
-                .collect();
-
-            // Since we now garantee song_group id is Some we sorta cannot decide if it is neccessary to update it or not
-            // Leading to having to update all hitanime, might not be the best idea, might also not be that bad.
-            update_animes.extend(hit_anime.iter());
-
-            let anisong_hit =
-                DBAnime::from_anisongs_and_anilists(&anisong_anime_hits, &anilists, Some(group_id))
-                    .unwrap();
-
-            let anisong_more_by_artists =
-                DBAnime::from_anisongs_and_anilists(&anisong_anime_more, &anilists, None).unwrap();
-
-            // extend with stuff that is new and need to be added.
-            update_animes.extend(anisong_hit.iter());
-            update_animes.extend(anisong_more_by_artists.iter());
-
-            // send to database for updates
-            self.update_or_add_animes(update_animes, Some("Database".to_string()), None)
-                .await;
-
-            // combine stuff from database and stuff from anisongdb
-            hit_anime.extend(anisong_hit);
-            more_by_artists.extend(anisong_more_by_artists);
+            let (mut hit_anime, mut more_by_artists) = self
+                .merge(
+                    hit_anime,
+                    more_by_artists,
+                    anisong_anime_hits,
+                    anisong_anime_more,
+                    Some(group_id),
+                )
+                .await
+                .unwrap();
 
             more_by_artists.sort_by(|a, b| a.title_eng.cmp(&b.title_eng));
             hit_anime.sort_by(|a, b| a.title_eng.cmp(&b.title_eng));
@@ -895,41 +838,11 @@ impl Database {
                         anisongs.extend(additional_anisongs);
                     }
 
-                    // Filter out duplicates
-                    let mut anime_set = HashSet::with_capacity(anisongs.len());
-
-                    let (mut anisong_anime_hits, mut anisong_anime_more): (Vec<Anime>, Vec<Anime>) =
+                    let (anisong_anime_hits, anisong_anime_more): (Vec<Anime>, Vec<Anime>) =
                         anisongs.into_iter().partition(|a| {
                             a.artists.iter().map(|a| a.id).collect::<Vec<i32>>() == best_artist_ids
                                 && a.songName == best_song_name
                         });
-
-                    anisong_anime_hits.retain(|a| anime_set.insert(a.annSongId));
-                    more_by_artists.retain(|a| anime_set.insert(a.ann_song_id));
-                    anisong_anime_more.retain(|a| anime_set.insert(a.annSongId));
-
-                    // Gather anilist ids for entries that need updates or adds
-                    let mut anilist_ids: Vec<AnilistID> = anisong_anime_more
-                        .iter()
-                        .filter_map(|a| a.linked_ids.anilist)
-                        .collect();
-                    anilist_ids.extend(
-                        more_by_artists
-                            .iter()
-                            .filter(|a| a.last_updated + Self::UPDATE_TIME < Utc::now())
-                            .filter_map(|a| a.anilist_id),
-                    );
-                    anilist_ids.extend(
-                        anisong_anime_hits
-                            .iter()
-                            .filter_map(|a| a.linked_ids.anilist),
-                    );
-
-                    // Fetch new data
-                    let media = Media::fetch_many(anilist_ids).await.unwrap();
-
-                    // Update data that we want to send to both frontend and database
-                    DBAnime::update_all(&mut more_by_artists, &media, None);
 
                     // Try and add more artists to the database
                     if score > Self::ACCURACY_AUTOADD_LIMIT {
@@ -954,25 +867,17 @@ impl Database {
                         None
                     };
 
-                    // Promote anisong Anime to DBAnime using our gathered media
-                    let mut anime_hit =
-                        DBAnime::from_anisongs_and_anilists(&anisong_anime_hits, &media, group_id)
-                            .unwrap();
+                    let (mut anime_hit, mut more_by_artists) = self
+                        .merge(
+                            vec![],
+                            more_by_artists,
+                            anisong_anime_hits,
+                            anisong_anime_more,
+                            group_id,
+                        )
+                        .await
+                        .unwrap();
 
-                    let more_by_artists_anisong =
-                        DBAnime::from_anisongs_and_anilists(&anisong_anime_more, &media, None)
-                            .unwrap();
-
-                    let mut updates_and_adds: Vec<&DBAnime> = anime_hit.iter().collect();
-                    updates_and_adds.extend(more_by_artists_anisong.iter());
-                    updates_and_adds.extend(more_by_artists.iter().filter(|a| {
-                        a.last_updated + Self::UPDATE_TIME < Utc::now() && a.anilist_id.is_some()
-                    }));
-
-                    self.update_or_add_animes(updates_and_adds, Some("Database".to_string()), None)
-                        .await;
-
-                    more_by_artists.extend(more_by_artists_anisong);
                     more_by_artists.sort_by(|a, b| a.title_eng.cmp(&b.title_eng));
                     anime_hit.sort_by(|a, b| a.title_eng.cmp(&b.title_eng));
 
@@ -990,50 +895,14 @@ impl Database {
                             .collect(),
                     }))
                 } else {
-                    // let best_score = max(certainty, score);
-
-                    let mut anime_set = HashSet::with_capacity(anisongs.len());
-
-                    more_by_artists.retain(|a| anime_set.insert(a.ann_song_id));
-                    anisongs.retain(|a| anime_set.insert(a.annSongId));
-
-                    let mut anilist_ids: Vec<AnilistID> = anisongs
-                        .iter()
-                        .filter_map(|a| a.linked_ids.anilist)
-                        .collect();
-
-                    anilist_ids.extend(
-                        more_by_artists
-                            .iter()
-                            .filter(|a| a.last_updated + Self::UPDATE_TIME < Utc::now())
-                            .filter_map(|a| a.anilist_id),
-                    );
-
-                    let media = Media::fetch_many(anilist_ids).await.unwrap();
-
-                    DBAnime::update_all(&mut more_by_artists, &media, None);
-
-                    let extra =
-                        DBAnime::from_anisongs_and_anilists(&anisongs, &media, None).unwrap();
-
-                    let mut updates_or_adds: Vec<&DBAnime> = more_by_artists
-                        .iter()
-                        .filter(|a| {
-                            a.last_updated + Self::UPDATE_TIME < Utc::now()
-                                && a.anilist_id.is_some()
-                        })
-                        .collect();
-
-                    updates_or_adds.extend(extra.iter());
-
-                    self.update_or_add_animes(updates_or_adds, Some("Database".to_string()), None)
-                        .await;
-
-                    more_by_artists.extend(extra);
+                    let (_, possible) = self
+                        .merge(vec![], more_by_artists, vec![], anisongs, None)
+                        .await
+                        .unwrap();
 
                     Ok(NewSong::Miss(SongMiss {
                         song_info: SongInfo::from_track_obj(track),
-                        possible_anime: more_by_artists
+                        possible_anime: possible
                             .iter()
                             .map(|a| FrontendAnimeEntry::from_db(&a))
                             .collect(),
