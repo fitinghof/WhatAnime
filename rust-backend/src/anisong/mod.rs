@@ -7,6 +7,7 @@ use crate::{
     spotify::responses::TrackObject,
 };
 
+use futures::future::ok;
 use fuzzywuzzy::fuzz;
 use itertools::Itertools;
 use log::warn;
@@ -28,6 +29,10 @@ impl AnisongClient {
     }
 
     pub async fn get_animes_by_artists_ids(&self, ids: Vec<i32>) -> Result<Vec<Anime>> {
+        if ids.is_empty() {
+            return Ok(vec![]);
+        }
+
         let search = ArtistIDSearchRequest {
             artist_ids: ids,
             group_granularity: 0,

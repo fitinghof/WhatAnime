@@ -20,6 +20,7 @@ use sqlx::{FromRow, Pool, Postgres, QueryBuilder};
 use std::cmp::max;
 use std::collections::HashSet;
 use std::env;
+use std::time::Instant;
 
 pub struct Database {
     pub pool: Pool<Postgres>,

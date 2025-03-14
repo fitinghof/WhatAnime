@@ -179,6 +179,10 @@ impl Media {
         }
     }
     pub async fn fetch_many(ids: Vec<AnilistID>) -> Result<Vec<Media>> {
+        if ids.is_empty() {
+            return Ok(vec![]);
+        }
+
         let mut all_media: Vec<Media> = Vec::new();
         let mut page = 1;
         let per_page = 50;
