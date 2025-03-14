@@ -16,8 +16,11 @@ use database::Database;
 use dotenv::dotenv;
 use env_logger::Target;
 pub use error::{Error, Result};
-use log::{error, info, warn};
+use log::info;
+use std::time::Duration;
 use std::{env, sync::Arc};
+use tokio::task;
+use tokio::time::interval;
 use tower_http::cors::CorsLayer;
 use tower_sessions::{MemoryStore, SessionManagerLayer, cookie::SameSite};
 
@@ -57,6 +60,15 @@ async fn main() {
         .filter_module("tracing", log::LevelFilter::Warn)
         .target(Target::Stdout)
         .init();
+
+    task::spawn(async {
+        let interval_duration = Duration::from_secs(60 * 60); // 1 hour
+        let mut interval = interval(interval_duration);
+        loop {
+            interval.tick().await;
+            info!("Sent Heartbeat");
+        }
+    });
 
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)

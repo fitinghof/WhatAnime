@@ -3,13 +3,12 @@ pub mod find_anime_no_db;
 pub mod regex_search;
 
 use crate::anilist::Media;
-use crate::anilist::types::AnilistID;
 use crate::anisong::{Anime, AnisongClient, Artist};
 use crate::japanese_processing::process_similarity;
 use crate::spotify::responses::{SimplifiedArtist, TrackObject};
 use crate::types::{FrontendAnimeEntry, NewSong, SongHit, SongInfo, SongMiss};
 use crate::{Error, Result};
-use axum_sessions::async_session::chrono::{Duration, Utc};
+// use axum_sessions::async_session::chrono::Duration;
 use axum_sessions::async_session::log::info;
 use databasetypes::{DBAnime, DBArtist, SongGroup, SongGroupLink};
 use regex::{self, Regex};
@@ -17,10 +16,8 @@ use regex_search::create_artist_regex;
 use reqwest::StatusCode;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{FromRow, Pool, Postgres, QueryBuilder};
-use std::cmp::max;
 use std::collections::HashSet;
 use std::env;
-use std::time::Instant;
 
 pub struct Database {
     pub pool: Pool<Postgres>,
@@ -28,7 +25,7 @@ pub struct Database {
 
 impl Database {
     const ACCURACY_AUTOADD_LIMIT: f32 = 80.0;
-    const UPDATE_TIME: Duration = Duration::days(7);
+    // const UPDATE_TIME: Duration = Duration::days(7);
     // A bound function to initialize the Database. You can call this once on startup.
     pub async fn new() -> Self {
         // Ensure the DATABASE_URL environment variable is set.

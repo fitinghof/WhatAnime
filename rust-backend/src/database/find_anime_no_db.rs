@@ -1,16 +1,12 @@
 use super::Database;
+use crate::Result;
 use crate::anisong::{Anime, AnisongClient};
 use crate::japanese_processing::{normalize_text, process_possible_japanese};
 use crate::spotify::responses::TrackObject;
-use crate::types::{
-    self, FrontendAnimeEntry, JikanAnime, JikanResponses, NewSong, SongHit, SongInfo, SongMiss,
-};
-use crate::{Error, Result};
-use futures::future::join_all;
+use crate::types::{self, FrontendAnimeEntry, NewSong, SongHit, SongInfo, SongMiss};
 
 use fuzzywuzzy::fuzz;
 use itertools::Itertools;
-use reqwest::Client;
 
 impl Database {
     pub async fn find_most_likely_anime(

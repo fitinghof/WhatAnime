@@ -8,7 +8,7 @@ use axum::{
     extract::{Query, State},
     response::IntoResponse,
 };
-use log::{info, warn};
+use log::warn;
 use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
 
