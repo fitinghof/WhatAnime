@@ -14,7 +14,9 @@ use axum::routing::post;
 use axum::{Router, http::HeaderValue, routing::get};
 use database::Database;
 use dotenv::dotenv;
+use env_logger::Target;
 pub use error::{Error, Result};
+use log::{error, info, warn};
 use std::{env, sync::Arc};
 use tower_http::cors::CorsLayer;
 use tower_sessions::{MemoryStore, SessionManagerLayer, cookie::SameSite};
@@ -48,8 +50,14 @@ impl AppState {
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
     dotenv().ok();
+
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Info)
+        .filter_module("tracing", log::LevelFilter::Warn)
+        .target(Target::Stdout)
+        .init();
+
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)

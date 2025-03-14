@@ -10,6 +10,7 @@ use crate::spotify::responses::{SimplifiedArtist, TrackObject};
 use crate::types::{FrontendAnimeEntry, NewSong, SongHit, SongInfo, SongMiss};
 use crate::{Error, Result};
 use axum_sessions::async_session::chrono::{Duration, Utc};
+use axum_sessions::async_session::log::info;
 use databasetypes::{DBAnime, DBArtist, SongGroup, SongGroupLink};
 use regex::{self, Regex};
 use regex_search::create_artist_regex;
@@ -151,7 +152,7 @@ impl Database {
             return;
         }
 
-        println!("Trying to add or update {} animes", animes.len());
+        info!("Trying to add or update {} animes", animes.len());
 
         let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
             r#"INSERT INTO animes (
