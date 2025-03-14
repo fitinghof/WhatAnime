@@ -179,4 +179,5 @@ pub enum CurrentlyPlayingResponses {
 pub struct SpotifyUser {
     pub display_name: Option<String>,
     pub email: Option<String>,
+    pub id: String,
 }

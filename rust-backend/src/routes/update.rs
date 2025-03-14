@@ -8,6 +8,7 @@ use axum::{
     extract::{Query, State},
     response::IntoResponse,
 };
+use log::info;
 use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
 
@@ -86,7 +87,7 @@ pub async fn update(
                     )));
                     let duration = start.elapsed();
                     if duration > Duration::from_secs(1) {
-                        println!("Time to find animes: {:?}", duration);
+                        info!("Time to find animes: {:?}", duration);
                     }
                     value
                 }

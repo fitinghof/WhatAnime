@@ -9,6 +9,7 @@ use crate::{
 
 use fuzzywuzzy::fuzz;
 use itertools::Itertools;
+use log::warn;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -56,7 +57,7 @@ impl AnisongClient {
             value if value == 503 => Ok(vec![]),
             _ => {
                 let status = response.status();
-                println!("{}", response.text().await.unwrap());
+                warn!("{}", response.text().await.unwrap());
                 Err(Error::BadRequest {
                     url: Self::SEARCH_REQUEST_URL.to_string(),
                     status_code: status,

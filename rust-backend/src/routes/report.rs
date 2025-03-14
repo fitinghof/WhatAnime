@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::{AppState, Result, spotify::api::get_user};
 use axum::{Json, extract::State, response::IntoResponse};
+use log::info;
 use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
 
@@ -23,7 +24,7 @@ pub async fn report(
         None => None,
     };
 
-    println!("{:?} made a report", user.as_ref().map(|a| &a.display_name));
+    info!("{:?} made a report", user.as_ref().map(|a| &a.display_name));
 
     sqlx::query("INSERT INTO reports (spotify_id, ann_song_id, reason, user_name, user_mail) VALUES ($1, $2, $3, $4, $5)")
         .bind(&params.spotify_id)

@@ -16,7 +16,7 @@ use regex::{self, Regex};
 use regex_search::create_artist_regex;
 use reqwest::StatusCode;
 use sqlx::postgres::PgPoolOptions;
-use sqlx::{Pool, Postgres, QueryBuilder};
+use sqlx::{FromRow, Pool, Postgres, QueryBuilder};
 use std::cmp::max;
 use std::collections::HashSet;
 use std::env;
@@ -276,6 +276,10 @@ impl Database {
             .members
             .as_ref()
             .map(|members| members.iter().map(|b| b.id).collect::<Vec<i32>>());
+        info!(
+            "Binding artist {:?} to https://open.spotify.com/artist/{}",
+            artist.names, &artist_spotify_id
+        );
         let _ = sqlx::query::<Postgres>(
             r#"INSERT INTO artists (
                 spotify_id,
@@ -367,7 +371,7 @@ impl Database {
         from_user_name: Option<String>,
         from_user_mail: Option<String>,
     ) -> Result<()> {
-        println!(
+        info!(
             "User {:?}, mail: {:?}, added bind for {}\nSong: {}  ---  {}\nby: {:?}  ---  {:?}",
             &from_user_name,
             &from_user_mail,
@@ -511,6 +515,10 @@ impl Database {
             for sartist in spotify_artists {
                 if re.is_match(&sartist.name) {
                     let mut new_artist = artist.clone();
+                    info!(
+                        "Binding ani artist {:?} to spotify artist {}",
+                        &new_artist.names, &sartist.name
+                    );
                     new_artist.spotify_id = sartist.id.clone();
                     artists_to_add.push(new_artist);
                 }
@@ -610,6 +618,126 @@ impl Database {
         }
 
         tx.commit().await.unwrap();
+    }
+
+    pub async fn merge(
+        &self,
+        mut anime_hits_db: Vec<DBAnime>,
+        mut more_by_artist_db: Vec<DBAnime>,
+        mut anime_hits_anisong: Vec<Anime>,
+        mut more_by_artist_anisong: Vec<Anime>,
+        song_group_id: Option<i32>,
+    ) -> Result<(Vec<DBAnime>, Vec<DBAnime>)> {
+        // Filter out initial duplicates, prefering stuff from our own database and hits over more by artist.
+        let mut anime_set = HashSet::with_capacity(anime_hits_db.len() + more_by_artist_db.len());
+        anime_hits_db.retain(|a| anime_set.insert(a.ann_song_id));
+        more_by_artist_db.retain(|a| anime_set.insert(a.ann_song_id));
+
+        anime_hits_anisong.retain(|a| anime_set.insert(a.annSongId));
+        more_by_artist_anisong.retain(|a| anime_set.insert(a.annSongId));
+
+        // fetch stuff from anisong that might already be in our database
+        #[derive(Debug, FromRow)]
+        pub struct LabledAnime {
+            pub label: i16,
+            #[sqlx(flatten)]
+            pub anime: DBAnime,
+        }
+
+        let found_anime = sqlx::query_as::<Postgres, LabledAnime>(
+            "SELECT 
+                (CASE 
+                    WHEN ann_song_id = ANY($1) THEN 0  -- Group A
+                    ELSE 1  -- Group B
+                END)::int2 AS label,
+                *
+            FROM animes
+            WHERE ann_song_id = ANY($1) OR ann_song_id = ANY($2)",
+        )
+        .bind(
+            anime_hits_anisong
+                .iter()
+                .map(|a| a.annSongId)
+                .collect::<Vec<i32>>(),
+        )
+        .bind(
+            more_by_artist_anisong
+                .iter()
+                .map(|a| a.annSongId)
+                .collect::<Vec<i32>>(),
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap();
+
+        // push it to the correct vec and filter it out form anisong vecs.
+        let mut anisong_filter = HashSet::with_capacity(found_anime.len());
+        for db_anime in found_anime {
+            anisong_filter.insert(db_anime.anime.ann_song_id);
+            match db_anime.label {
+                0 => anime_hits_db.push(db_anime.anime),
+                _ => more_by_artist_db.push(db_anime.anime),
+            }
+        }
+        anime_hits_anisong.retain(|a| anisong_filter.insert(a.annSongId));
+        more_by_artist_anisong.retain(|a| anisong_filter.insert(a.annSongId));
+
+        // Gather ids for anilist fetch
+        let mut anilist_ids_set =
+            HashSet::with_capacity(more_by_artist_anisong.len() + anime_hits_anisong.len());
+        anilist_ids_set.extend(
+            anime_hits_db
+                .iter()
+                .filter(|a| a.is_outdated())
+                .filter_map(|a| a.anilist_id),
+        );
+        anilist_ids_set.extend(
+            more_by_artist_db
+                .iter()
+                .filter(|a| a.is_outdated())
+                .filter_map(|a| a.anilist_id),
+        );
+        anilist_ids_set.extend(
+            anime_hits_anisong
+                .iter()
+                .filter_map(|a| a.linked_ids.anilist),
+        );
+        anilist_ids_set.extend(
+            more_by_artist_anisong
+                .iter()
+                .filter_map(|a| a.linked_ids.anilist),
+        );
+
+        let anilist_ids = Vec::from_iter(anilist_ids_set.into_iter());
+        // fetch all media
+        let media = Media::fetch_many(anilist_ids).await.unwrap();
+
+        // Promote the anisongs Anime to DBAnime
+        let promoted_anisong_hit =
+            DBAnime::from_anisongs_and_anilists(&anime_hits_anisong, &media, song_group_id)
+                .unwrap();
+        let promoted_anisong_more_by_artist =
+            DBAnime::from_anisongs_and_anilists(&more_by_artist_anisong, &media, None).unwrap();
+
+        // Update existing DBAnime and collect the copies of the Updated DBAnime
+        let mut update_copies = DBAnime::update_all(&mut anime_hits_db, &media, song_group_id);
+
+        update_copies.extend(DBAnime::update_all(&mut more_by_artist_db, &media, None));
+
+        // Collect refs to everything that needs to be sent to the database
+        let mut updates_or_adds = promoted_anisong_hit.iter().collect::<Vec<&DBAnime>>();
+        updates_or_adds.extend(promoted_anisong_hit.iter());
+        updates_or_adds.extend(promoted_anisong_more_by_artist.iter());
+
+        // Send to database
+        self.update_or_add_animes(updates_or_adds, Some("Database".to_string()), None)
+            .await;
+
+        // Assemble all hits and more_by_artist entries
+        anime_hits_db.extend(promoted_anisong_hit);
+        more_by_artist_db.extend(promoted_anisong_more_by_artist);
+
+        Ok((anime_hits_db, more_by_artist_db))
     }
 
     pub async fn get_anime_2(

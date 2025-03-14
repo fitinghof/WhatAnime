@@ -7,9 +7,12 @@ from anisongdb import (
 )
 from database import DataBase
 
+# Fuuka Izumi, Aoi Koga, Shiori Sugiura
+artist_spotify_id = "2uTf3MjHEyidMXyrIh5QzR"
+artist_name = "Aoi Koga"
 sr = Search_Request(
     artist_search_filter=Search_Filter(
-        search="Hiroyuki Sawano",
+        search=artist_name,
         partial_match=False,
     )
 )
@@ -17,8 +20,14 @@ sr = Search_Request(
 if __name__ == "__main__":
     anisong_db = AnisongDB_Interface()
     db = DataBase()
-    artist = anisong_db.get_songs(sr)[0].artists[0]
-    artist_spotify_id = "0Riv2KnFcLZA3JSVryRg4y"
+    artist = None
+    for possible_artist in anisong_db.get_songs(sr)[0].artists:
+        if artist_name in possible_artist.names:
+            artist = possible_artist
+            break
+    if artist is None:
+        print("Couldn't find the artist")
+        exit()
     inp = input(
         f"Is this the correct artist? {artist.names}\n"
         "Does this link to the artist?\n"

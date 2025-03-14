@@ -4,7 +4,7 @@ use crate::anisong::Anime;
 use crate::Result;
 use crate::japanese_processing::process_similarity;
 use crate::types::{AnimeIndex, AnimeTrackIndex, AnimeType};
-use axum_sessions::async_session::chrono::{DateTime, Utc};
+use axum_sessions::async_session::chrono::{DateTime, Duration, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
@@ -189,24 +189,28 @@ impl DBAnime {
         db_animes: &mut Vec<DBAnime>,
         new_anilist: &Vec<Media>,
         group_id: Option<i32>,
-    ) {
+    ) -> Vec<DBAnime> {
         db_animes.sort_by(|a, b| {
             a.anilist_id
                 .unwrap_or(AnilistID(-1))
                 .cmp(&b.anilist_id.unwrap_or(AnilistID(-1)))
         });
+        let mut updated_anime = Vec::new();
 
         let mut anilist_index = 0;
         let mut db_anime_index = 0;
         while anilist_index < new_anilist.len() && db_anime_index < db_animes.len() {
             let media = &new_anilist[anilist_index];
-            let anisong = &mut db_animes[db_anime_index];
+            let db_anime = &mut db_animes[db_anime_index];
 
-            if anisong.anilist_id.is_some_and(|a| a == media.id) {
+            if db_anime.anilist_id.is_some_and(|a| a == media.id) {
                 db_anime_index += 1;
-                anisong.update(media);
+                db_anime.update(media);
+                if group_id.is_none() {
+                    updated_anime.push(db_anime.clone());
+                }
             } else {
-                match anisong.anilist_id.is_none_or(|id| id < media.id) {
+                match db_anime.anilist_id.is_none_or(|id| id < media.id) {
                     true => {
                         db_anime_index += 1;
                     }
@@ -219,8 +223,10 @@ impl DBAnime {
         for dbanime in db_animes {
             if dbanime.song_group_id.is_none() {
                 dbanime.song_group_id = group_id;
+                updated_anime.push(dbanime.clone());
             }
         }
+        updated_anime
     }
 
     // expects that the Media vec is sorted by id and the Anime vec is sorted by anilist_id
@@ -276,6 +282,10 @@ impl DBAnime {
             anisong_index += 1;
         }
         Ok(db_animes)
+    }
+
+    pub fn is_outdated(&self) -> bool {
+        return self.last_updated + Duration::days(7) < Utc::now();
     }
 }
 
