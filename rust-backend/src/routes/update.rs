@@ -63,6 +63,10 @@ pub async fn update(
                 CurrentlyPlayingResponses::Ratelimited => {
                     return Ok(Json(ContentUpdate::NotPlaying));
                 }
+                CurrentlyPlayingResponses::SpotifyError(status_code) => {
+                    warn!("Spotify return error code: {}", status_code);
+                    return Ok(Json(ContentUpdate::NoUpdates));
+                }
             };
 
             match current_song.item {
@@ -87,7 +91,10 @@ pub async fn update(
                     )));
                     let duration = start.elapsed();
                     if duration > Duration::from_secs(1) {
-                        warn!("Time to find animes: {:?}", duration);
+                        warn!(
+                            "Time to find animes: {:?} song: {}, link: https://open.spotify.com/track/{}",
+                            duration, &song.name, &song.id
+                        );
                     }
                     value
                 }

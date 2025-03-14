@@ -10,7 +10,7 @@ use crate::{
 use futures::future::ok;
 use fuzzywuzzy::fuzz;
 use itertools::Itertools;
-use log::warn;
+use log::{error, warn};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -179,13 +179,12 @@ impl AnisongClient {
             .await
             .unwrap();
 
-        if response.status().is_success() {
-            Ok(response.json().await.unwrap())
-        } else {
-            Err(Error::BadRequest {
-                url: Self::SEARCH_REQUEST_URL.to_string(),
-                status_code: response.status(),
-            })
+        match response.status().is_success() {
+            true => Ok(response.json().await.unwrap()),
+            false => {
+                error!("Anisong fetch {}", response.text().await.unwrap());
+                Ok(vec![])
+            }
         }
     }
     pub async fn find_songs_by_artists(&self, song: &TrackObject) -> Result<Vec<(Anime, f32)>> {

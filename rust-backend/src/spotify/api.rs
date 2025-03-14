@@ -110,10 +110,11 @@ pub async fn currently_playing(session: Session) -> Result<CurrentlyPlayingRespo
         )),
         status => {
             println!("{}", response.text().await.unwrap());
-            Err(Error::BadRequest {
-                url: "https://api.spotify.com/v1/me/player/currently-playing".to_string(),
-                status_code: status,
-            })
+            Ok(CurrentlyPlayingResponses::SpotifyError(status)) // Might want to implement better logic here
+            // Err(Error::BadRequest {
+            //     url: "https://api.spotify.com/v1/me/player/currently-playing".to_string(),
+            //     status_code: status,
+            // })
         }
     }
 }

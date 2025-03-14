@@ -681,6 +681,7 @@ impl Database {
         more_by_artist_anisong.retain(|a| anisong_filter.insert(a.annSongId));
 
         // Gather ids for anilist fetch
+        // We use a set here to prevent sending unneccessary data since many anisongs may contain the same annSongId
         let mut anilist_ids_set =
             HashSet::with_capacity(more_by_artist_anisong.len() + anime_hits_anisong.len());
         anilist_ids_set.extend(
@@ -711,11 +712,11 @@ impl Database {
         let media = Media::fetch_many(anilist_ids).await.unwrap();
 
         // Promote the anisongs Anime to DBAnime
-        let promoted_anisong_hit =
+        let mut promoted_anisong_hit =
             DBAnime::from_anisongs_and_anilists(&anime_hits_anisong, &media, song_group_id)
                 .unwrap();
 
-        let promoted_anisong_more_by_artist =
+        let mut promoted_anisong_more_by_artist =
             DBAnime::from_anisongs_and_anilists(&more_by_artist_anisong, &media, None).unwrap();
 
         // Update existing DBAnime and collect the copies of the Updated DBAnime
@@ -724,7 +725,7 @@ impl Database {
         update_copies.extend(DBAnime::update_all(&mut more_by_artist_db, &media, None));
 
         // Collect refs to everything that needs to be sent to the database
-        let mut updates_or_adds = promoted_anisong_hit.iter().collect::<Vec<&DBAnime>>();
+        let mut updates_or_adds = update_copies.iter().collect::<Vec<&DBAnime>>();
         updates_or_adds.extend(promoted_anisong_hit.iter());
         updates_or_adds.extend(promoted_anisong_more_by_artist.iter());
 
@@ -733,8 +734,8 @@ impl Database {
             .await;
 
         // Assemble all hits and more_by_artist entries
-        anime_hits_db.extend(promoted_anisong_hit);
-        more_by_artist_db.extend(promoted_anisong_more_by_artist);
+        anime_hits_db.append(&mut promoted_anisong_hit);
+        more_by_artist_db.append(&mut promoted_anisong_more_by_artist);
 
         Ok((anime_hits_db, more_by_artist_db))
     }

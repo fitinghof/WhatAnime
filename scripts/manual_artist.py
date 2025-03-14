@@ -7,9 +7,8 @@ from anisongdb import (
 )
 from database import DataBase
 
-# Fuuka Izumi, Aoi Koga, Shiori Sugiura
-artist_spotify_id = "2uTf3MjHEyidMXyrIh5QzR"
-artist_name = "Aoi Koga"
+artist_spotify_id = "1rOnNKoQhifOY4rIH4wMtk"
+artist_name = "Skirt"
 sr = Search_Request(
     artist_search_filter=Search_Filter(
         search=artist_name,
