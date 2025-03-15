@@ -480,8 +480,6 @@ impl Database {
             let (best_match, certainty) =
                 DBAnime::pick_best_by_song_name(&mut more_by_artists, &track.name).unwrap();
 
-            dbg!(&best_match[0].song_name);
-
             if certainty > Self::ACCURACY_AUTOADD_LIMIT {
                 self.add_song_group_link(
                     &track.id,
@@ -904,7 +902,7 @@ impl Database {
                     }))
                 }
             } else {
-                println!("It is a sad moment for the database");
+                info!("It is a sad moment for the database");
                 // This is incorrect, at the very least we should add (CV:name) unwrapping to the artistnames in the func
                 // We should probably also use the new update_or_add func somewhere inside there
                 return Ok(self
