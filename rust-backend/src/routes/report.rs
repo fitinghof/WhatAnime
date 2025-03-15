@@ -24,7 +24,10 @@ pub async fn report(
         None => None,
     };
 
-    info!("{:?} made a report", user.as_ref().map(|a| &a.display_name));
+    info!(
+        "{:?} made a report",
+        user.as_ref().map(|a| a.display_name.as_ref()).flatten()
+    );
 
     sqlx::query("INSERT INTO reports (spotify_id, ann_song_id, reason, user_name, user_mail) VALUES ($1, $2, $3, $4, $5)")
         .bind(&params.spotify_id)

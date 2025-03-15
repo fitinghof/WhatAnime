@@ -472,13 +472,15 @@ impl Database {
             .filter_map(|a| a.groups_ids.clone())
             .for_each(|g| temp.extend(g));
 
-        let more_by_artists = self.get_animes_by_artists_ann_ids(&temp).await.unwrap();
+        let mut more_by_artists = self.get_animes_by_artists_ann_ids(&temp).await.unwrap();
 
         if anime.len() > 0 {
             Ok((anime, more_by_artists, artist_ann_ids, artists, 100.0))
         } else if more_by_artists.len() > 0 {
             let (best_match, certainty) =
-                DBAnime::pick_best_by_song_name(&more_by_artists, &track.name).unwrap();
+                DBAnime::pick_best_by_song_name(&mut more_by_artists, &track.name).unwrap();
+
+            dbg!(&best_match[0].song_name);
 
             if certainty > Self::ACCURACY_AUTOADD_LIMIT {
                 self.add_song_group_link(
@@ -706,7 +708,6 @@ impl Database {
                 .iter()
                 .filter_map(|a| a.linked_ids.anilist),
         );
-
         let anilist_ids = Vec::from_iter(anilist_ids_set.into_iter());
         // fetch all media
         let media = Media::fetch_many(anilist_ids).await.unwrap();
@@ -715,7 +716,6 @@ impl Database {
         let mut promoted_anisong_hit =
             DBAnime::from_anisongs_and_anilists(&anime_hits_anisong, &media, song_group_id)
                 .unwrap();
-
         let mut promoted_anisong_more_by_artist =
             DBAnime::from_anisongs_and_anilists(&more_by_artist_anisong, &media, None).unwrap();
 
@@ -792,11 +792,11 @@ impl Database {
                 certainty: certainty as i32,
                 anime_info: hit_anime
                     .iter()
-                    .map(|a| FrontendAnimeEntry::from_db(a))
+                    .map(|a| FrontendAnimeEntry::from_db_anime(a))
                     .collect(),
                 more_with_artist: more_by_artists
                     .iter()
-                    .map(|a| FrontendAnimeEntry::from_db(a))
+                    .map(|a| FrontendAnimeEntry::from_db_anime(a))
                     .collect(),
             }))
         } else {
@@ -805,16 +805,17 @@ impl Database {
                     .get_animes_by_artists_ids(artists_ann_id.clone())
                     .await
                     .unwrap();
-                let (best, score) =
-                    AnisongClient::pick_best_by_song_name(&anisongs, &track.name).unwrap();
+                let (mut anime_hits, score) =
+                    AnisongClient::pick_best_by_song_name(&mut anisongs, &track.name).unwrap();
 
                 // Add constant for acceptable match
                 if score > accuracy_cutoff {
                     // get data for the best song
-                    let best_song_name = best[0].songName.clone();
-                    let best_artist_ids: Vec<i32> = best[0].artists.iter().map(|a| a.id).collect();
+                    let best_song_name = anime_hits[0].songName.clone();
+                    let best_artist_ids: Vec<i32> =
+                        anime_hits[0].artists.iter().map(|a| a.id).collect();
 
-                    let mut artist_set = HashSet::with_capacity(best[0].artists.len());
+                    let mut artist_set = HashSet::with_capacity(anime_hits[0].artists.len());
 
                     artists_ann_id.iter().for_each(|&id| {
                         artist_set.insert(id);
@@ -834,20 +835,21 @@ impl Database {
                             .get_animes_by_artists_ids(missing_artists)
                             .await
                             .unwrap();
-                        anisongs.extend(additional_anisongs);
+                        let (mut more_hits, mut more_by_artist): (Vec<Anime>, Vec<Anime>) =
+                            additional_anisongs.into_iter().partition(|a| {
+                                a.artists.iter().map(|a| a.id).collect::<Vec<i32>>()
+                                    == best_artist_ids
+                                    && a.songName == best_song_name
+                            });
+                        anime_hits.append(&mut more_hits);
+                        anisongs.append(&mut more_by_artist);
                     }
-
-                    let (anisong_anime_hits, anisong_anime_more): (Vec<Anime>, Vec<Anime>) =
-                        anisongs.into_iter().partition(|a| {
-                            a.artists.iter().map(|a| a.id).collect::<Vec<i32>>() == best_artist_ids
-                                && a.songName == best_song_name
-                        });
 
                     // Try and add more artists to the database
                     if score > Self::ACCURACY_AUTOADD_LIMIT {
                         self.try_add_artists(
                             &artists_searched,
-                            anisong_anime_hits[0].artists.iter().collect(),
+                            anime_hits[0].artists.iter().collect(),
                             track.artists.iter().collect(),
                         )
                         .await;
@@ -857,8 +859,8 @@ impl Database {
                         Some(
                             self.add_song_group_link(
                                 &track.id,
-                                &anisong_anime_hits[0].songName,
-                                &anisong_anime_hits[0].artists.iter().map(|a| a.id).collect(),
+                                &anime_hits[0].songName,
+                                &anime_hits[0].artists.iter().map(|a| a.id).collect(),
                             )
                             .await,
                         )
@@ -867,13 +869,7 @@ impl Database {
                     };
 
                     let (mut anime_hit, mut more_by_artists) = self
-                        .merge(
-                            vec![],
-                            more_by_artists,
-                            anisong_anime_hits,
-                            anisong_anime_more,
-                            group_id,
-                        )
+                        .merge(vec![], more_by_artists, anime_hits, anisongs, group_id)
                         .await
                         .unwrap();
 
@@ -886,11 +882,11 @@ impl Database {
                         certainty: score as i32,
                         anime_info: anime_hit
                             .iter()
-                            .map(|a| FrontendAnimeEntry::from_db(a))
+                            .map(|a| FrontendAnimeEntry::from_db_anime(a))
                             .collect(),
                         more_with_artist: more_by_artists
                             .iter()
-                            .map(|a| FrontendAnimeEntry::from_db(a))
+                            .map(|a| FrontendAnimeEntry::from_db_anime(a))
                             .collect(),
                     }))
                 } else {
@@ -903,7 +899,7 @@ impl Database {
                         song_info: SongInfo::from_track_obj(track),
                         possible_anime: possible
                             .iter()
-                            .map(|a| FrontendAnimeEntry::from_db(&a))
+                            .map(|a| FrontendAnimeEntry::from_db_anime(&a))
                             .collect(),
                     }))
                 }

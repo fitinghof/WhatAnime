@@ -92,7 +92,7 @@ pub async fn update(
                     let duration = start.elapsed();
                     if duration > Duration::from_secs(1) {
                         warn!(
-                            "Time to find animes: {:?} song: {}, link: https://open.spotify.com/track/{}",
+                            "Time to find animes: {:?} song: {},\nlink: https://open.spotify.com/track/{}",
                             duration, &song.name, &song.id
                         );
                     }

@@ -1,12 +1,9 @@
 use super::Database;
 use crate::Result;
-use crate::anisong::{Anime, AnisongClient};
-use crate::japanese_processing::{normalize_text, process_possible_japanese};
+use crate::anisong::AnisongClient;
+use crate::japanese_processing::process_possible_japanese;
 use crate::spotify::responses::TrackObject;
 use crate::types::{self, FrontendAnimeEntry, NewSong, SongHit, SongInfo, SongMiss};
-
-use fuzzywuzzy::fuzz;
-use itertools::Itertools;
 
 impl Database {
     pub async fn find_most_likely_anime(
@@ -17,162 +14,68 @@ impl Database {
     ) -> Result<NewSong> {
         let romanji_title = process_possible_japanese(&song.name);
 
-        println!("{} : {}", &song.name, &romanji_title);
-
-        let mut weighed_anime = anisong_db.find_songs_by_artists(&song).await.unwrap();
-
-        println!("{}", weighed_anime.len());
+        let mut anime = anisong_db.find_songs_by_artists(&song).await.unwrap();
 
         let mut found_by_artist = true;
 
-        if weighed_anime.is_empty() {
+        if anime.is_empty() {
             found_by_artist = false;
 
-            let animes = anisong_db
+            anime = anisong_db
                 .get_animes_by_song_title(romanji_title.clone(), false)
                 .await
                 .unwrap();
-
-            for anime in animes {
-                let artists_string: String = anime
-                    .artists
-                    .iter()
-                    .map(|artist| artist.names[0].clone()) // Extract first name
-                    .intersperse(" ".to_string()) // Insert space between names
-                    .collect();
-
-                let spotify_artists: String = song
-                    .artists
-                    .iter()
-                    .map(|artist| process_possible_japanese(&artist.name)) // Extract first name
-                    .intersperse(" ".to_string()) // Insert space between names
-                    .collect();
-
-                let score = fuzz::token_set_ratio(
-                    &normalize_text(&spotify_artists),
-                    &normalize_text(&artists_string),
-                    false,
-                    true,
-                ) as f32;
-
-                weighed_anime.push((anime, score));
-            }
-            println!("Search by song: {}", weighed_anime.len())
         }
 
-        if weighed_anime.len() > 0 {
-            let max_score = weighed_anime
-                .iter()
-                .map(|a| a.1)
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-
-            if max_score > accuracy_cutoff {
-                let (animehit, more_by_artists) = if found_by_artist {
-                    let (animehit_evaluated, more_by_artists): (
-                        Vec<(Anime, f32)>,
-                        Vec<(Anime, f32)>,
-                    ) = weighed_anime
-                        .into_iter()
-                        .partition(|anime| anime.1 == max_score);
-
-                    if max_score > Self::ACCURACY_AUTOADD_LIMIT {
-                        for anime in &animehit_evaluated {
-                            let _ = self.try_add_anime_db(song, anime.0.clone()).await;
-                        }
-                        if animehit_evaluated[0].0.artists.len() == 1 && song.artists.len() == 1 {
-                            let _ = self
-                                .add_artist_db(
-                                    &animehit_evaluated[0].0.artists[0],
-                                    &song.artists[0].id,
-                                )
-                                .await;
-                        }
-                    }
-
-                    let mut anime_hit_info_vec = FrontendAnimeEntry::from_anisongs(
-                        &animehit_evaluated.iter().map(|a| &a.0).collect(),
-                    )
-                    .await
-                    .unwrap();
-                    let mut anime_more_by_artist_info_vec = FrontendAnimeEntry::from_anisongs(
-                        &more_by_artists.iter().map(|a| &a.0).collect(),
-                    )
-                    .await
-                    .unwrap();
-
-                    anime_hit_info_vec.sort_by(|a, b| a.title.cmp(&b.title));
-                    anime_more_by_artist_info_vec.sort_by(|a, b| a.title.cmp(&b.title));
-
-                    (anime_hit_info_vec, anime_more_by_artist_info_vec)
-                } else {
-                    // found by song title
-                    let anime_hit_info: Vec<(Anime, f32)> = weighed_anime
-                        .into_iter()
-                        .filter(|value| value.1 == max_score)
-                        .collect();
-
-                    if max_score > Self::ACCURACY_AUTOADD_LIMIT {
-                        for anime in &anime_hit_info {
-                            let _ = self.try_add_anime_db(song, anime.0.clone()).await;
-                        }
-                        if anime_hit_info[0].0.artists.len() == 1 && song.artists.len() == 1 {
-                            let _ = self
-                                .add_artist_db(&anime_hit_info[0].0.artists[0], &song.artists[0].id)
-                                .await;
-                        }
-                    }
-
-                    let mut anime_hit_info_vec = FrontendAnimeEntry::from_anisongs(
-                        &anime_hit_info.iter().map(|a| &a.0).collect(),
-                    )
-                    .await
-                    .unwrap();
-
-                    let anime_more_by_artist_info = anisong_db
-                        .get_animes_by_artists_ids(
-                            anime_hit_info[0]
-                                .0
-                                .artists
-                                .iter()
-                                .map(|artist| artist.id.clone())
-                                .collect(),
-                        )
-                        .await?;
-
-                    let mut anime_more_by_artists_info_vec = FrontendAnimeEntry::from_anisongs(
-                        &anime_more_by_artist_info.iter().map(|a| a).collect(),
-                    )
-                    .await
-                    .unwrap();
-
-                    anime_hit_info_vec.sort_by(|a, b| a.title.cmp(&b.title));
-                    anime_more_by_artists_info_vec.sort_by(|a, b| a.title.cmp(&b.title));
-
-                    (anime_hit_info_vec, anime_more_by_artists_info_vec)
-                };
-
-                let hit: SongHit = SongHit {
-                    song_info: SongInfo::from_track_obj(song),
-                    certainty: max_score as i32,
-                    anime_info: animehit,
-                    more_with_artist: more_by_artists,
-                };
-
-                return Ok(types::NewSong::Hit(hit));
+        if !anime.is_empty() {
+            let (best_anime, max_score) = if found_by_artist {
+                AnisongClient::pick_best_by_song_name(&mut anime, &song.name).unwrap()
             } else {
-                let possible_anime = FrontendAnimeEntry::from_anisongs(
-                    &weighed_anime.iter().map(|a| &a.0).collect(),
+                AnisongClient::pick_best_by_artist_names(
+                    &mut anime,
+                    song.artists.iter().map(|a| &a.name).collect(),
                 )
+                .unwrap()
+            };
+
+            let mut song_group_id = None;
+            if max_score > Self::ACCURACY_AUTOADD_LIMIT {
+                song_group_id = Some(
+                    self.add_song_group_link(
+                        &song.id,
+                        &best_anime[0].songName,
+                        &best_anime[0].artists.iter().map(|a| a.id).collect(),
+                    )
+                    .await,
+                );
+
+                self.try_add_artists(
+                    &vec![],
+                    best_anime[0].artists.iter().collect(),
+                    song.artists.iter().collect(),
+                )
+                .await;
+            }
+
+            let (mut hit, mut more) = self
+                .merge(vec![], vec![], best_anime, anime, song_group_id)
                 .await
                 .unwrap();
 
-                let miss = SongMiss {
+            if max_score > accuracy_cutoff {
+                return Ok(types::NewSong::Hit(SongHit {
                     song_info: SongInfo::from_track_obj(song),
-                    possible_anime,
-                };
+                    certainty: max_score as i32,
+                    anime_info: FrontendAnimeEntry::from_db_animes(&hit),
+                    more_with_artist: FrontendAnimeEntry::from_db_animes(&more),
+                }));
+            } else {
+                more.append(&mut hit);
 
-                return Ok(types::NewSong::Miss(miss));
+                return Ok(types::NewSong::Miss(SongMiss {
+                    song_info: SongInfo::from_track_obj(song),
+                    possible_anime: FrontendAnimeEntry::from_db_animes(&more),
+                }));
             }
         } else {
             let possible_anime = anisong_db

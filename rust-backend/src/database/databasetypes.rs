@@ -69,24 +69,38 @@ pub struct DBAnime {
 }
 
 impl DBAnime {
-    pub fn pick_best_by_song_name<'a>(
-        animes: &'a Vec<DBAnime>,
+    pub fn pick_best_by_song_name(
+        animes: &mut Vec<DBAnime>,
         song_name: &String,
-    ) -> Result<(Vec<&'a DBAnime>, f32)> {
-        if animes.len() == 0 {
+    ) -> Result<(Vec<DBAnime>, f32)> {
+        if animes.is_empty() {
             return Ok((vec![], 0.0));
         }
-        let mut evaluated_animes: Vec<(&DBAnime, f32)> = animes
+
+        // Compute similarity scores
+        let evaluated_animes: Vec<f32> = animes
             .iter()
-            .map(|a| (a, process_similarity(&song_name, &a.song_name)))
-            .sorted_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .map(|a| process_similarity(song_name, &a.song_name))
             .collect();
 
-        evaluated_animes.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-        let max_score = evaluated_animes[0].1;
+        // Find the max score
+        let max_score = evaluated_animes
+            .iter()
+            .map(|score| *score)
+            .fold(f32::MIN, f32::max);
 
-        evaluated_animes.retain(|a| a.1 == max_score);
-        Ok((evaluated_animes.iter().map(|a| a.0).collect(), max_score))
+        // Collect indices of the best matches
+        let mut best_animes = Vec::new();
+        let mut i = evaluated_animes.len();
+
+        while i > 0 {
+            i -= 1;
+            if evaluated_animes[i] == max_score {
+                best_animes.push(animes.swap_remove(i));
+            }
+        }
+
+        Ok((best_animes, max_score))
     }
 
     pub fn from_anisong_and_anilist(
@@ -220,10 +234,12 @@ impl DBAnime {
                 }
             };
         }
-        for dbanime in db_animes {
-            if dbanime.song_group_id.is_none() {
-                dbanime.song_group_id = group_id;
-                updated_anime.push(dbanime.clone());
+        if group_id.is_some() {
+            for dbanime in db_animes {
+                if dbanime.song_group_id.is_none() {
+                    dbanime.song_group_id = group_id;
+                    updated_anime.push(dbanime.clone());
+                }
             }
         }
         updated_anime

@@ -1,13 +1,11 @@
-use std::collections::HashSet;
-
 use crate::{
     Error, Result,
     anilist::types::AnilistID,
     japanese_processing::{normalize_text, process_possible_japanese, process_similarity},
     spotify::responses::TrackObject,
 };
+use core::f32;
 
-use futures::future::ok;
 use fuzzywuzzy::fuzz;
 use itertools::Itertools;
 use log::{error, warn};
@@ -187,7 +185,7 @@ impl AnisongClient {
             }
         }
     }
-    pub async fn find_songs_by_artists(&self, song: &TrackObject) -> Result<Vec<(Anime, f32)>> {
+    pub async fn find_songs_by_artists(&self, song: &TrackObject) -> Result<Vec<Anime>> {
         let artists = &song.artists;
         let mut anime_song_entries = Vec::new();
 
@@ -199,64 +197,72 @@ impl AnisongClient {
                 .unwrap();
             anime_song_entries.extend(songs);
         }
-
-        let mut set = HashSet::with_capacity(anime_song_entries.len());
-
-        let romanji_song_title = process_possible_japanese(&song.name);
-        Ok(anime_song_entries
-            .into_iter()
-            .filter(|anime| set.insert(anime.annSongId))
-            .map(|anime| {
-                let score = process_similarity(&romanji_song_title, &anime.songName);
-                (anime, score)
-            })
-            .collect())
+        Ok(anime_song_entries)
     }
 
     pub fn pick_best_by_song_name<'a>(
-        animes: &'a Vec<Anime>,
+        animes: &mut Vec<Anime>,
         song_name: &String,
-    ) -> Result<(Vec<&'a Anime>, f32)> {
+    ) -> Result<(Vec<Anime>, f32)> {
         if animes.len() == 0 {
             return Ok((vec![], 0.0));
         }
-        let mut evaluated_animes: Vec<(&Anime, f32)> = animes
+
+        let evaluations: Vec<f32> = animes
             .iter()
-            .map(|a| (a, process_similarity(&song_name, &a.songName)))
-            .sorted_by(|a, b| b.1.partial_cmp(&a.1).unwrap())
+            .map(|a| process_similarity(&song_name, &a.songName))
             .collect();
-        let max_score = evaluated_animes[0].1;
-        evaluated_animes.retain(|a| a.1 == max_score);
-        Ok((evaluated_animes.iter().map(|a| a.0).collect(), max_score))
+
+        let max_score = evaluations.iter().map(|s| *s).fold(f32::MIN, f32::max);
+
+        let mut best_animes = Vec::new();
+        let mut i = evaluations.len();
+
+        while i > 0 {
+            i -= 1;
+            if evaluations[i] == max_score {
+                best_animes.push(animes.swap_remove(i));
+            }
+        }
+
+        Ok((best_animes, max_score))
     }
 
     pub fn pick_best_by_artist_names<'a>(
-        animes: &'a Vec<Anime>,
+        animes: &mut Vec<Anime>,
         artist_names: Vec<&String>,
-    ) -> Result<(Vec<&'a Anime>, f32)> {
+    ) -> Result<(Vec<Anime>, f32)> {
         if animes.len() == 0 {
             return Ok((vec![], 0.0));
         }
+
         let artist_names = artist_names.into_iter().join(" ");
-        let mut evaluated_animes: Vec<(&Anime, f32)> = animes
+        let evaluations: Vec<f32> = animes
             .iter()
             .map(|a| {
                 let anisong_artists_names = a.artists.iter().map(|b| &b.names[0]).join(" ");
-                (
-                    a,
-                    fuzz::token_set_ratio(
-                        &normalize_text(&process_possible_japanese(&artist_names)),
-                        &normalize_text(&anisong_artists_names),
-                        true,
-                        true,
-                    ) as f32,
-                )
+                fuzz::token_set_ratio(
+                    &normalize_text(&process_possible_japanese(&artist_names)),
+                    &normalize_text(&anisong_artists_names),
+                    true,
+                    true,
+                ) as f32
             })
-            .sorted_by(|a, b| b.1.partial_cmp(&a.1).unwrap())
             .collect();
-        let max_score = evaluated_animes[0].1;
-        evaluated_animes.retain(|a| a.1 == max_score);
-        Ok((evaluated_animes.iter().map(|a| a.0).collect(), max_score))
+
+        let max_score = evaluations.iter().map(|s| *s).fold(f32::MIN, f32::max);
+
+        let mut best_animes = Vec::new();
+        let mut i = evaluations.len();
+
+        while i > 0 {
+            i -= 1;
+            if evaluations[i] == max_score {
+                best_animes.push(animes.swap_remove(i));
+            }
+        }
+
+        Ok((best_animes, max_score))
     }
 }
 

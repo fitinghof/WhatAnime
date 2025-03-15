@@ -231,7 +231,7 @@ impl FrontendAnimeEntry {
             ann_song_id: anisong_anime.annSongId,
         })
     }
-    pub fn from_db(db_anime: &DBAnime) -> Self {
+    pub fn from_db_anime(db_anime: &DBAnime) -> Self {
         Self {
             title: db_anime.title_eng.clone(),
             title_japanese: db_anime.title_jpn.clone(),
@@ -256,6 +256,9 @@ impl FrontendAnimeEntry {
             score: db_anime.mean_score,
             ann_song_id: db_anime.ann_song_id,
         }
+    }
+    pub fn from_db_animes(db_animes: &Vec<DBAnime>) -> Vec<FrontendAnimeEntry> {
+        db_animes.iter().map(|a| Self::from_db_anime(a)).collect()
     }
 
     // pub async fn from_anisong(anisong: &Anime) -> Result<Self> {
