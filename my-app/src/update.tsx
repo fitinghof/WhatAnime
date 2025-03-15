@@ -15,7 +15,8 @@ const Update = () => {
     const [spotify_id, setSpotifyId] = useState<string>("");
 
     const fetchUpdate = (refresh: boolean = false) => {
-        const fetch_address = `/api/update${refresh ? "?refresh=true" : ""}`
+        const fetch_address = `/api/update${refresh ? "?refresh=true" : ""}`;
+
         fetch(fetch_address, { credentials: "include" })
             .then((response) => response.json())
             .then((data) => {
@@ -67,14 +68,12 @@ const Update = () => {
                 }
             })
             .catch((err) => console.error(err));
+        setTimeout(fetchUpdate, 5000);
     };
 
     useEffect(() => {
         // Run immediately, then every 5 seconds (5000ms)
-        fetchUpdate(true);
-        const intervalId = setInterval(fetchUpdate, 5000);
-
-        return () => clearInterval(intervalId);
+        return () => fetchUpdate(true);
 
     }, []);
 
