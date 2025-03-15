@@ -14,6 +14,8 @@ from datetime import date, datetime
 
 from remove_song_link import remove_song_link
 
+from update_anilist import update_anilist
+
 from utility import clear_screen
 
 
@@ -30,7 +32,7 @@ class Report(BaseModel):
         return f"Report(id={self.id}, spotify_song_id={self.spotify_id}, ann_song_id={self.ann_song_id}, reason={self.reason}, user_name={self.user_name}, user_email={self.user_mail}, timestamp={self.date_added})"
 
 
-if __name__ == "__main__":
+def parse_repports():
     db = DataBase()
     db.conn.row_factory = dict_row
     cursor = db.conn.cursor()
@@ -41,7 +43,7 @@ if __name__ == "__main__":
 
     if len(reports) == 0:
         print("No Reports! it is a happy day :)")
-        exit()
+        return
 
     for report in reports:
         clear_screen()
@@ -61,24 +63,27 @@ if __name__ == "__main__":
         print(f"spotify link: https://open.spotify.com/track/{report.spotify_id}\n")
 
         inp = input(
-            "What would you like to do?\n" "(s)kip, (w)ipe song link, (r)emove report\n"
+            "What would you like to do?\n"
+            "(s)kip, (w)ipe song link, (r)emove report, (u)pdate anilist\n"
         )
-        match inp:
+        match inp.lower().strip():
             case "s":
                 continue
             case "w":
-                remove_song_link(report.spotify_id)
-                cursor.execute(
-                    "DELETE FROM reports WHERE report_id = %s", (report.report_id,)
-                )
-                print(
-                    f"removed song link for id {report.spotify_id} and deleted report"
-                )
+                if remove_song_link(report.spotify_id):
+                    cursor.execute(
+                        "DELETE FROM reports WHERE report_id = %s", (report.report_id,)
+                    )
             case "r":
                 cursor.execute(
                     "DELETE FROM reports WHERE report_id = %s", (report.report_id,)
                 )
                 print(f"Deleted report")
+            case "u":
+                if update_anilist(report.ann_song_id):
+                    cursor.execute(
+                        "DELETE FROM reports WHERE report_id = %s", (report.report_id,)
+                    )
 
             case _:
                 print("invalid input, did nothing")
@@ -86,3 +91,7 @@ if __name__ == "__main__":
     cursor.close()
 
     print("All reports parsed : )")
+
+
+if __name__ == "__main__":
+    parse_repports()

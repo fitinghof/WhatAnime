@@ -5,7 +5,6 @@ use crate::Result;
 use crate::japanese_processing::process_similarity;
 use crate::types::{AnimeIndex, AnimeTrackIndex, AnimeType};
 use axum_sessions::async_session::chrono::{DateTime, Duration, Utc};
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 

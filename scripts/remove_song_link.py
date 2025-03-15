@@ -8,7 +8,7 @@ from anisongdb import (
 from database import DataBase
 
 
-def remove_song_link(spotify_id: str, db: DataBase):
+def remove_song_link(spotify_id: str, db: DataBase) -> bool:
     cursor = db.conn.cursor()
     confirm = input(f"correct link? : https://open.spotify.com/track/{spotify_id}\n")
     if confirm == "y" or confirm == "Y":
@@ -29,8 +29,10 @@ def remove_song_link(spotify_id: str, db: DataBase):
         db.conn.commit()
         cursor.close()
         print("Done :)")
+        return True
     else:
         print("Nothing done")
+        return False
 
 
 if __name__ == "__main__":
