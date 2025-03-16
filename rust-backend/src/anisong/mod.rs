@@ -1,5 +1,5 @@
 use crate::{
-    Error, Result,
+    Result,
     anilist::types::AnilistID,
     japanese_processing::{normalize_text, process_possible_japanese, process_similarity},
     spotify::responses::TrackObject,

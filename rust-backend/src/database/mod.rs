@@ -53,15 +53,6 @@ impl Database {
         Ok(())
     }
 
-    async fn get_artist(&self, spotify_id: &String) -> Result<Option<DBArtist>> {
-        Ok(
-            sqlx::query_as::<Postgres, DBArtist>("SELECT * FROM artists WHERE spotify_id = $1")
-                .bind(&spotify_id)
-                .fetch_optional(&self.pool)
-                .await?,
-        )
-    }
-
     async fn get_artists_spotify_id(&self, spotify_ids: &Vec<String>) -> Result<Vec<DBArtist>> {
         Ok(
             sqlx::query_as::<Postgres, DBArtist>(
@@ -345,21 +336,6 @@ impl Database {
         } else {
             song_link.unwrap().group_id
         }
-    }
-
-    pub async fn try_add_anime_db(
-        &self,
-        spotify_track_object: &TrackObject,
-        anisong_anime: Anime,
-    ) -> Result<()> {
-        return self
-            .try_add_anime(
-                spotify_track_object,
-                anisong_anime,
-                Some("Database".to_string()),
-                None,
-            )
-            .await;
     }
 
     pub async fn try_add_anime_user(

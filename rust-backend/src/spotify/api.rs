@@ -101,10 +101,11 @@ pub async fn currently_playing(session: Session) -> Result<CurrentlyPlayingRespo
         .unwrap();
 
     match response.status() {
+        // Note to self, make sure not parsable success cases are before the if status.is_success()
+        axum::http::StatusCode::NO_CONTENT => Ok(CurrentlyPlayingResponses::NotPlaying),
         status if status.is_success() => Ok(CurrentlyPlayingResponses::Playing(
             response.json().await.unwrap(),
         )),
-        axum::http::StatusCode::NO_CONTENT => Ok(CurrentlyPlayingResponses::NotPlaying),
         axum::http::StatusCode::UNAUTHORIZED => Ok(CurrentlyPlayingResponses::BadToken),
         axum::http::StatusCode::FORBIDDEN => Err(Error::BadOAuth),
         axum::http::StatusCode::TOO_MANY_REQUESTS => Ok(CurrentlyPlayingResponses::Ratelimited),

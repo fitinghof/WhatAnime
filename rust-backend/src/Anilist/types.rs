@@ -31,14 +31,6 @@ pub struct MediaTitle {
 #[sqlx(transparent)]
 pub struct ImageURL(URL);
 
-impl ImageURL {
-    pub fn from_str(s: &str) -> Self {
-        Self {
-            0: URL::from_str(s),
-        }
-    }
-}
-
 #[derive(
     Debug, PartialEq, Eq, PartialOrd, Ord, Hash, FromRow, Deserialize, Serialize, Type, Clone,
 )]
@@ -109,12 +101,6 @@ pub enum ReleaseSeason {
 )]
 #[sqlx(transparent)]
 pub struct URL(String);
-
-impl URL {
-    pub fn from_str(s: &str) -> Self {
-        Self { 0: s.to_string() }
-    }
-}
 
 #[derive(Deserialize, Serialize, FromRow, Clone, Debug)]
 pub struct Studio {
