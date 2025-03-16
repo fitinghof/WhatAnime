@@ -17,7 +17,7 @@ use reqwest::StatusCode;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{FromRow, Pool, Postgres, QueryBuilder};
 use std::collections::HashSet;
-use std::env;
+use std::{env, vec};
 
 pub struct Database {
     pub pool: Pool<Postgres>,
@@ -380,33 +380,29 @@ impl Database {
         from_user_name: Option<String>,
         from_user_mail: Option<String>,
     ) -> Result<()> {
-        match anisong_anime.linked_ids.anilist {
-            Some(id) => match Media::fetch_one(id).await {
-                Some(info) => {
-                    self.add_anime(
-                        spotify_track_object,
-                        anisong_anime,
-                        info,
-                        from_user_name,
-                        from_user_mail,
-                    )
-                    .await
-                    .unwrap();
-                    Ok(())
-                }
-                None => {
-                    println!(
-                        "Failed to fetch anilist info for {}",
-                        anisong_anime.animeENName
-                    );
-                    Err(Error::BadRequest {
-                        url: "Anilist and whatever their URL is".to_string(),
-                        status_code: StatusCode::BAD_REQUEST,
-                    })
-                }
-            },
-            None => Ok(()),
-        }
+        let media = match anisong_anime.linked_ids.anilist {
+            Some(id) => Media::fetch_one(id).await,
+            None => None,
+        };
+
+        let group_id = self
+            .add_song_group_link(
+                &spotify_track_object.id,
+                &anisong_anime.songName,
+                &anisong_anime
+                    .artists
+                    .iter()
+                    .map(|a| a.id)
+                    .collect::<Vec<i32>>(),
+            )
+            .await;
+
+        let db_anime =
+            DBAnime::from_anisong_and_anilist(&anisong_anime, media.as_ref(), Some(group_id));
+
+        self.update_or_add_animes(vec![&db_anime], from_user_name, from_user_mail)
+            .await;
+        Ok(())
     }
 
     pub async fn db_full_search(
