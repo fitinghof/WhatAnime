@@ -744,7 +744,7 @@ impl Database {
         anisong_db: &AnisongClient,
         accuracy_cutoff: f32,
     ) -> Result<NewSong> {
-        let (hit_anime, more_by_artists, artists_ann_id, artists_searched, certainty) =
+        let (mut hit_anime, more_by_artists, artists_ann_id, artists_searched, certainty) =
             self.db_full_search(track).await.unwrap();
 
         if certainty == 100.0 {
@@ -888,10 +888,12 @@ impl Database {
                             .collect(),
                     }))
                 } else {
-                    let (_, possible) = self
+                    let (_, mut possible) = self
                         .merge(vec![], more_by_artists, vec![], anisongs, None)
                         .await
                         .unwrap();
+
+                    possible.append(&mut hit_anime);
 
                     Ok(NewSong::Miss(SongMiss {
                         song_info: SongInfo::from_track_obj(track),

@@ -6,6 +6,7 @@ use crate::{
 };
 use core::f32;
 
+use axum::http::status;
 use fuzzywuzzy::fuzz;
 use itertools::Itertools;
 use log::{error, warn};
@@ -56,15 +57,22 @@ impl AnisongClient {
             .await?;
 
         match response.status() {
-            value if value.is_success() => Ok(response.json().await?),
-            value if value == 503 => Ok(vec![]),
+            value if value.is_success() => Ok(response.json().await.unwrap()),
+            status::StatusCode::SERVICE_UNAVAILABLE | status::StatusCode::INTERNAL_SERVER_ERROR => {
+                warn!(
+                    "Non-successfull response from anisong, status: {} Response:\n{}",
+                    response.status(),
+                    response.text().await.unwrap(),
+                );
+                Ok(vec![])
+            }
             _ => {
-                let status = response.status();
-                warn!("{}", response.text().await.unwrap());
-                Err(Error::BadRequest {
-                    url: Self::SEARCH_REQUEST_URL.to_string(),
-                    status_code: status,
-                })
+                error!(
+                    "Unrecognised non-successfull response from anisong, treated as empty response, status: {} Response:\n{}",
+                    response.status(),
+                    response.text().await.unwrap(),
+                );
+                Ok(vec![])
             }
         }
     }
@@ -119,11 +127,12 @@ impl AnisongClient {
             .send()
             .await?;
 
-        if response.status().is_success() {
-            Ok(response.json().await?)
-        } else {
-            println!("{}", response.text().await?);
-            Ok(vec![])
+        match response.status() {
+            status if status.is_success() => Ok(response.json().await.unwrap()),
+            _ => {
+                warn!("{}", response.text().await?);
+                Ok(vec![])
+            }
         }
     }
 

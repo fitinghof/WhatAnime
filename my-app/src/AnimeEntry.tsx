@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import ReportButton from "./report_window";
+import './AnimeEntry.css'
 export interface AnimeIndex {
   Season?: number,
   Movie?: number,

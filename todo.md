@@ -1,6 +1,8 @@
 
 -------------------------------------------------------------------------------------- features --------------------------------------------------------------------------------------
 
+ * Add filters for openings / inserts / endings
+
  * Group stuff from the same anime?
 
  * Spotify groups exists, there for, for database purposes, the same spotify id should be made bindable to multiple artists in some way.

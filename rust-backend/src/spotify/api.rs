@@ -2,6 +2,7 @@ use crate::{AppState, Error, Result};
 
 use super::responses::{CurrentlyPlayingResponses, SpotifyToken, SpotifyUser, TrackObject};
 use base64::{Engine, engine};
+use log::{error, warn};
 use reqwest::Client;
 use reqwest::header::{HeaderMap, HeaderValue};
 use std::collections::HashMap;
@@ -42,20 +43,21 @@ pub async fn refresh_access_token(session: Session, app_state: Arc<AppState>) ->
         .await
         .unwrap();
 
-    if token_response.status() != 200 {
-        println!(
-            "Spotify didn't want to refresh our toke : (, {}",
-            token_response.status()
-        );
-        let status = token_response.status();
-        println!("{}", token_response.text().await.unwrap());
-        return Err(Error::BadRequest {
-            url: "https://accounts.spotify.com/api/token".to_string(),
-            status_code: status,
-        });
-    }
+    let token_info: SpotifyToken = match token_response.status() {
+        status if status.is_success() => token_response.json().await.unwrap(),
+        status => {
+            error!(
+                "Spotify returned error code: {} response text:\n{}",
+                status,
+                token_response.text().await.unwrap()
+            );
+            return Err(Error::BadRequest {
+                url: refresh_url.to_string(),
+                status_code: status,
+            });
+        }
+    };
 
-    let token_info: SpotifyToken = token_response.json().await.unwrap();
     if token_info.refresh_token.is_some() {
         session
             .insert("access_token", token_info.access_token)
@@ -99,22 +101,31 @@ pub async fn currently_playing(session: Session) -> Result<CurrentlyPlayingRespo
         .unwrap();
 
     match response.status() {
-        status if status == axum::http::StatusCode::NO_CONTENT => {
-            Ok(CurrentlyPlayingResponses::NotPlaying)
-        }
-        status if status == 401 => Ok(CurrentlyPlayingResponses::BadToken),
-        status if status == 403 => Err(Error::BadOAuth),
-        status if status == 429 => Ok(CurrentlyPlayingResponses::Ratelimited),
         status if status.is_success() => Ok(CurrentlyPlayingResponses::Playing(
             response.json().await.unwrap(),
         )),
-        status => {
-            println!("{}", response.text().await.unwrap());
+        axum::http::StatusCode::NO_CONTENT => Ok(CurrentlyPlayingResponses::NotPlaying),
+        axum::http::StatusCode::UNAUTHORIZED => Ok(CurrentlyPlayingResponses::BadToken),
+        axum::http::StatusCode::FORBIDDEN => Err(Error::BadOAuth),
+        axum::http::StatusCode::TOO_MANY_REQUESTS => Ok(CurrentlyPlayingResponses::Ratelimited),
+        status if status.is_server_error() => {
+            warn!(
+                "Spotify returned code {}, response text:\n{}",
+                status,
+                response.text().await.unwrap(),
+            );
             Ok(CurrentlyPlayingResponses::SpotifyError(status)) // Might want to implement better logic here
-            // Err(Error::BadRequest {
-            //     url: "https://api.spotify.com/v1/me/player/currently-playing".to_string(),
-            //     status_code: status,
-            // })
+        }
+        status => {
+            error!(
+                "Spotify returned unhandled code {}, response text:\n{}",
+                status,
+                response.text().await.unwrap(),
+            );
+            Err(Error::BadRequest {
+                url: currently_playing_url.to_string(),
+                status_code: status,
+            })
         }
     }
 }
@@ -130,15 +141,19 @@ pub async fn get_song(spotify_id: String, token: String) -> Result<TrackObject> 
         .await
         .unwrap();
 
-    if response.status().is_success() {
-        Ok(response.json().await.unwrap())
-    } else {
-        let status = response.status();
-        println!("{}", response.text().await.unwrap());
-        Err(Error::BadRequest {
-            url: url,
-            status_code: status,
-        })
+    match response.status() {
+        status if status.is_success() => Ok(response.json().await.unwrap()),
+        status => {
+            error!(
+                "Spotify returned error code: {} response text:\n{}",
+                status,
+                response.text().await.unwrap()
+            );
+            Err(Error::BadRequest {
+                url: url,
+                status_code: status,
+            })
+        }
     }
 }
 
@@ -152,14 +167,18 @@ pub async fn get_user(token: String) -> Result<SpotifyUser> {
         .await
         .unwrap();
 
-    if response.status().is_success() {
-        Ok(response.json().await.unwrap())
-    } else {
-        let status = response.status();
-        println!("{}", response.text().await.unwrap());
-        Err(Error::BadRequest {
-            url: "https://api.spotify.com/v1/me".to_string(),
-            status_code: status,
-        })
+    match response.status() {
+        status if status.is_success() => Ok(response.json().await.unwrap()),
+        status => {
+            error!(
+                "Spotify returned error code: {} response text:\n{}",
+                status,
+                response.text().await.unwrap()
+            );
+            Err(Error::BadRequest {
+                url: url.to_string(),
+                status_code: status,
+            })
+        }
     }
 }
