@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::{
     Error, Result,
     anilist::{Media, types::ImageURL},
@@ -30,10 +32,10 @@ impl SongInfo {
     }
 }
 
-fn split_string(input: &str) -> (String, Option<i32>) {
+fn split_string<T: FromStr>(input: &str) -> (String, Option<T>) {
     let mut words: Vec<&str> = input.split_whitespace().collect();
     if let Some(last) = words.last() {
-        if let Ok(num) = last.parse::<i32>() {
+        if let Ok(num) = last.parse::<T>() {
             words.pop();
             let text = words.join(" ");
             return (text, Some(num));
@@ -125,13 +127,13 @@ impl AnimeTrackIndex {
 #[derive(Serialize)]
 #[repr(u8)]
 pub enum AnimeIndex {
-    Season(i32),
-    Movie(i32),
-    ONA(i32),
-    OVA(i32),
-    TVSpecial(i32),
-    Special(i32),
-    MusicVideo(i32),
+    Season(f32),
+    Movie(f32),
+    ONA(f32),
+    OVA(f32),
+    TVSpecial(f32),
+    Special(f32),
+    MusicVideo(f32),
 }
 
 impl AnimeIndex {
@@ -140,7 +142,7 @@ impl AnimeIndex {
         unsafe { *(self as *const Self as *const u8) }
     }
 
-    pub fn value(&self) -> i32 {
+    pub fn value(&self) -> f32 {
         match self {
             AnimeIndex::Season(val)
             | AnimeIndex::Movie(val)
@@ -159,21 +161,21 @@ impl AnimeIndex {
 
         let match_str: &str = &anime_index_type;
         match match_str {
-            "TV" => Ok(AnimeIndex::Season(0)),
-            "Season" => Ok(AnimeIndex::Season(track_number.unwrap_or(1))),
-            "Movie" => Ok(AnimeIndex::Movie(track_number.unwrap_or(1))),
-            "ONA" => Ok(AnimeIndex::ONA(track_number.unwrap_or(0))),
-            "OVA" => Ok(AnimeIndex::OVA(track_number.unwrap_or(1))),
-            "TV Special" => Ok(AnimeIndex::TVSpecial(track_number.unwrap_or(1))),
-            "Special" => Ok(AnimeIndex::Special(track_number.unwrap_or(1))),
-            "Music Video" => Ok(AnimeIndex::MusicVideo(track_number.unwrap_or(1))),
+            "TV" => Ok(AnimeIndex::Season(0.0)),
+            "Season" => Ok(AnimeIndex::Season(track_number.unwrap_or(1.0))),
+            "Movie" => Ok(AnimeIndex::Movie(track_number.unwrap_or(1.0))),
+            "ONA" => Ok(AnimeIndex::ONA(track_number.unwrap_or(0.0))),
+            "OVA" => Ok(AnimeIndex::OVA(track_number.unwrap_or(1.0))),
+            "TV Special" => Ok(AnimeIndex::TVSpecial(track_number.unwrap_or(1.0))),
+            "Special" => Ok(AnimeIndex::Special(track_number.unwrap_or(1.0))),
+            "Music Video" => Ok(AnimeIndex::MusicVideo(track_number.unwrap_or(1.0))),
             _ => {
                 println!("Found weird track type: {}", anime_index_type);
                 Err(Error::ParseError(anime_category.to_string()))
             }
         }
     }
-    pub fn from_db(discriminator: i16, value: i32) -> Result<Self> {
+    pub fn from_db(discriminator: i16, value: f32) -> Result<Self> {
         match discriminator {
             0 => Ok(AnimeIndex::Season(value)),
             1 => Ok(AnimeIndex::Movie(value)),

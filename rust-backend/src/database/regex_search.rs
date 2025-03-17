@@ -53,10 +53,13 @@ lazy_static! {
     };
 
     static ref ARTIST_REGEX: Regex = {
-        Regex::new(&r"(\w+) \(CV(:|\.)\s*(?P<a>.*?)\)").unwrap()
+        Regex::new(&r"(\w+)\s*\((CV|Vo)(:|\.)\s*(?P<a>.*?)\)").unwrap()
     };
 }
 
+pub fn process_artist_name(name: &str) -> String {
+    ARTIST_REGEX.replace_all(name, "$a").trim().to_string()
+}
 // simply unwraps possible (CV:artistname) before calling create_regex
 pub fn create_artist_regex(input: Vec<&String>) -> String {
     input

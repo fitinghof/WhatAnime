@@ -1,6 +1,7 @@
 use crate::{
     Result,
     anilist::types::AnilistID,
+    database::regex_search::process_artist_name,
     japanese_processing::{normalize_text, process_possible_japanese, process_similarity},
     spotify::responses::TrackObject,
 };
@@ -199,7 +200,7 @@ impl AnisongClient {
         let mut anime_song_entries = Vec::new();
 
         for artist in artists {
-            let romanji_artist = process_possible_japanese(&artist.name);
+            let romanji_artist = process_possible_japanese(&process_artist_name(&artist.name));
             let songs = self
                 .get_animes_by_artist_name(Some(&romanji_artist), Some(&romanji_artist))
                 .await
@@ -245,7 +246,10 @@ impl AnisongClient {
             return Ok((vec![], 0.0));
         }
 
-        let artist_names = artist_names.into_iter().join(" ");
+        let artist_names = artist_names
+            .into_iter()
+            .map(|a| process_artist_name(&a))
+            .join(" ");
         let evaluations: Vec<f32> = animes
             .iter()
             .map(|a| {

@@ -95,6 +95,12 @@ const Update = () => {
                             {songInfo ? songInfo.artists.join(", ") : ""}
                         </p>
                     </div>
+                    {/* <div className="square-container">
+                        <div className="square-button">yo</div>
+                        <div className="square-button">yo</div>
+                        <div className="square-button">yo</div>
+                        <div className="square-button">yo</div>
+                    </div> */}
                 </div>
             </div>
 

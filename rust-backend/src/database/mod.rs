@@ -12,7 +12,7 @@ use crate::{Error, Result};
 use axum_sessions::async_session::log::info;
 use databasetypes::{DBAnime, DBArtist, SongGroup, SongGroupLink};
 use regex::{self, Regex};
-use regex_search::create_artist_regex;
+use regex_search::{create_artist_regex, process_artist_name};
 use reqwest::StatusCode;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{FromRow, Pool, Postgres, QueryBuilder};
@@ -543,7 +543,7 @@ impl Database {
                     let max_score = artist
                         .names
                         .iter()
-                        .map(|an| process_similarity(&a.name, &an))
+                        .map(|an| process_similarity(&process_artist_name(&a.name), &an))
                         .max_by(|a, b| a.partial_cmp(b).unwrap())
                         .unwrap();
                     (a, max_score)

@@ -16,7 +16,7 @@ pub struct DBAnime {
     pub title_eng: String,
     pub title_jpn: String,
     pub index_type: i16,
-    pub index_number: i32,
+    pub index_number: f32,
     pub anime_type: i16,
     pub episodes: Option<i32>,
 
