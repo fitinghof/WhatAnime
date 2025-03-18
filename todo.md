@@ -1,9 +1,11 @@
 
 -------------------------------------------------------------------------------------- back-end --------------------------------------------------------------------------------------
 
+ * Make it so that stuff like AnimeIndex is a struct with a type and number rather than a single enum
+
  * Spotify groups exists, there for, for database purposes, the same spotify id should be made bindable to multiple artists in some way.
 
- * Add manual anime bind script 
+ * Add manual anime bind script
 
  * Make user 'profiles' or rather save some info about the user in the database. Could include stuff like binds made, reports made, database mod perhaps to allow free binding and then only allow everyone else to make bind requests.
 
