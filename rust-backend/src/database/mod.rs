@@ -14,7 +14,7 @@ use databasetypes::{DBAnime, DBArtist, SongGroup, SongGroupLink};
 use regex::{self, Regex};
 use regex_search::{create_artist_regex, process_artist_name};
 use sqlx::postgres::PgPoolOptions;
-use sqlx::{FromRow, Pool, Postgres, QueryBuilder};
+use sqlx::{FromRow, Pool, Postgres, QueryBuilder, query};
 use std::collections::HashSet;
 use std::{env, vec};
 
@@ -479,9 +479,9 @@ impl Database {
             return;
         }
 
-        let mut artists_to_add = Vec::new();
+        let mut links = Vec::new();
 
-        for artist in anisong_artists {
+        for artist in anisong_artists.clone() {
             let mut eval_spotify: Vec<(&SimplifiedArtist, f32)> = spotify_artists
                 .iter()
                 .map(|&a| {
@@ -498,39 +498,49 @@ impl Database {
             eval_spotify.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
             if !eval_spotify.is_empty() && eval_spotify[0].1 > Self::ACCURACY_AUTOADD_LIMIT {
-                let new_artist = DBArtist {
-                    spotify_id: eval_spotify[0].0.id.clone(),
-                    ann_id: artist.id,
-                    names: artist.names.clone(),
-                    groups_ids: artist
-                        .groups
-                        .as_ref()
-                        .map(|g| g.iter().map(|g2| g2.id).collect()),
-                    members: artist
-                        .members
-                        .as_ref()
-                        .map(|a| a.iter().map(|m| m.id).collect()),
-                };
-                artists_to_add.push(new_artist);
+                links.push((artist.id, eval_spotify[0].0.id.clone()));
             }
         }
-        let mut tx = self.pool.begin().await.unwrap();
 
-        for new_artist in artists_to_add {
-            let _ = sqlx::query!(
-                r#"INSERT INTO artists (spotify_id, ann_id, names, groups_ids, members)
-                VALUES ($1, $2, $3, $4, $5)
-                ON CONFLICT (spotify_id) DO NOTHING"#,
-                &new_artist.spotify_id,
-                &new_artist.ann_id,
-                &new_artist.names,
-                &new_artist.groups_ids.unwrap_or(vec![]),
-                &new_artist.members.unwrap_or(vec![]),
+        let mut tx = self.pool.begin().await.unwrap();
+        for link in links {
+            let _ = sqlx::query(
+                r#"INSERT INTO artist_links (ann_id, spotify_id)
+                VALUES ($1, $2)
+                ON CONFLICT DO NOTHING"#,
             )
+            .bind(link.0)
+            .bind(link.1)
             .execute(&mut *tx)
             .await
             .unwrap();
         }
+
+        let mut query_builder: QueryBuilder<Postgres> =
+            QueryBuilder::new(r#"INSERT INTO new_artists (ann_id, names, groups_id, members) "#);
+
+        query_builder.push_values(anisong_artists, |mut builder, artist| {
+            builder
+                .push_bind(artist.id)
+                .push_bind(artist.names.clone())
+                .push_bind(
+                    artist
+                        .groups
+                        .as_ref()
+                        .map(|o| o.iter().map(|a| a.id).collect::<Vec<i32>>()),
+                )
+                .push_bind(
+                    artist
+                        .members
+                        .as_ref()
+                        .map(|o| o.iter().map(|a| a.id).collect::<Vec<i32>>()),
+                );
+        });
+
+        query_builder.push(" ON CONFLICT DO NOTHING");
+
+        let query = query_builder.build();
+        query.execute(&mut *tx).await.unwrap();
 
         tx.commit().await.unwrap();
     }
