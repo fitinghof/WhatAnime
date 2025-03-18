@@ -2,18 +2,17 @@ pub mod databasetypes;
 pub mod find_anime_no_db;
 pub mod regex_search;
 
+use crate::Result;
 use crate::anilist::Media;
 use crate::anisong::{Anime, AnisongClient, Artist};
 use crate::japanese_processing::process_similarity;
 use crate::spotify::responses::{SimplifiedArtist, TrackObject};
 use crate::types::{FrontendAnimeEntry, NewSong, SongHit, SongInfo, SongMiss};
-use crate::{Error, Result};
 // use axum_sessions::async_session::chrono::Duration;
 use axum_sessions::async_session::log::info;
 use databasetypes::{DBAnime, DBArtist, SongGroup, SongGroupLink};
 use regex::{self, Regex};
 use regex_search::{create_artist_regex, process_artist_name};
-use reqwest::StatusCode;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{FromRow, Pool, Postgres, QueryBuilder};
 use std::collections::HashSet;
@@ -64,24 +63,6 @@ impl Database {
         )
     }
 
-    async fn get_artists_ann_id(&self, ann_id: &Vec<i32>) -> Result<Vec<DBArtist>> {
-        Ok(
-            sqlx::query_as::<Postgres, DBArtist>("SELECT * FROM artists WHERE ann_id = ANY($1)")
-                .bind(&ann_id)
-                .fetch_all(&self.pool)
-                .await?,
-        )
-    }
-
-    async fn get_animes_by_annids(&self, ann_ids: &Vec<i32>) -> Result<Vec<DBAnime>> {
-        Ok(
-            sqlx::query_as::<Postgres, DBAnime>("SELECT * FROM animes WHERE ann_id = ANY($1)")
-                .bind(&ann_ids)
-                .fetch_all(&self.pool)
-                .await?,
-        )
-    }
-
     async fn get_anime_by_spotify_id(&self, spotify_id: &String) -> Result<Vec<DBAnime>> {
         let group_id = sqlx::query_as!(
             SongGroupLink,
@@ -113,22 +94,6 @@ impl Database {
                 .await
                 .unwrap(),
         )
-    }
-
-    async fn get_animes_by_artists_ids(&self, spotify_ids: &Vec<String>) -> Result<Vec<DBAnime>> {
-        // Might want to use the jointable, but that would require starting to fill the join table aswell.
-        let artists = sqlx::query_as!(
-            DBArtist,
-            "SELECT * FROM artists WHERE spotify_id = ANY($1)",
-            spotify_ids
-        )
-        .fetch_all(&self.pool)
-        .await
-        .unwrap();
-
-        let ann_ids: Vec<i32> = artists.into_iter().map(|a| a.ann_id).collect();
-
-        self.get_animes_by_artists_ann_ids(&ann_ids).await
     }
 
     pub async fn update_or_add_animes(
@@ -232,30 +197,7 @@ impl Database {
         query.execute(&self.pool).await.unwrap();
     }
 
-    pub async fn add_anime(
-        &self,
-        spotify_track_object: &TrackObject,
-        anisong_anime: Anime,
-        info: Media,
-        from_user_name: Option<String>,
-        from_user_mail: Option<String>,
-    ) -> Result<()> {
-        let group_id = self
-            .add_song_group_link(
-                &spotify_track_object.id,
-                &anisong_anime.songName,
-                &anisong_anime.artists.iter().map(|a| a.id.clone()).collect(),
-            )
-            .await;
-        let db_anime =
-            DBAnime::from_anisong_and_anilist(&anisong_anime, Some(&info), Some(group_id));
-
-        self.update_or_add_animes(vec![&db_anime], from_user_name, from_user_mail)
-            .await;
-        Ok(())
-    }
-
-    pub async fn add_artist_db(&self, artist: &Artist, artist_spotify_id: &String) {
+    pub async fn add_artist_db(&self, artist: &Artist, artist_spotify_id: Option<&String>) {
         let groups_ids = artist
             .groups
             .as_ref()
@@ -266,28 +208,31 @@ impl Database {
             .as_ref()
             .map(|members| members.iter().map(|b| b.id).collect::<Vec<i32>>());
         info!(
-            "Binding artist {:?} to https://open.spotify.com/artist/{}",
+            "Binding artist {:?} to https://open.spotify.com/artist/{:?}",
             artist.names, &artist_spotify_id
         );
+        if let Some(s_id) = artist_spotify_id {
+            let _ = sqlx::query::<Postgres> (
+                r#"INSERT INTO artist_links (ann_id, spotify_id) VALUES ($1, $2) ON CONFLICT DO NOTHING"#
+            ).bind(artist.id).bind(s_id).execute(&self.pool).await.unwrap();
+        }
         let _ = sqlx::query::<Postgres>(
-            r#"INSERT INTO artists (
-                spotify_id,
+            r#"INSERT INTO new_artists (
                 ann_id,
                 names,
                 groups_ids,
                 members
             )
             VALUES (
-            $1, $2, $3, $4, $5
+            $1, $2, $3, $4
             )
             ON CONFLICT DO NOTHING
             "#,
         )
-        .bind(artist_spotify_id.clone())
         .bind(artist.id)
         .bind(&artist.names)
-        .bind(groups_ids.as_deref())
-        .bind(members_ids.as_deref())
+        .bind(groups_ids)
+        .bind(members_ids)
         .execute(&self.pool)
         .await
         .unwrap();
