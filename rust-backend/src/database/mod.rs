@@ -72,7 +72,7 @@ impl Database {
                 SELECT *
                 FROM animes
                 JOIN song_group_links ON animes.song_group_id = song_group_links.group_id
-                WHERE song_group_links.spotify_id = ANY($1)
+                WHERE song_group_links.spotify_id = $1
                 "#,
         )
         .bind(&spotify_id)
@@ -315,9 +315,6 @@ impl Database {
             .await
             .unwrap();
 
-            // self.try_add_artists_variation(&artists, &track.artists)
-            //     .await;
-
             artists.iter().map(|a| a.ann_id).collect()
         };
 
@@ -404,7 +401,6 @@ impl Database {
         spotify_artists: &Vec<SimplifiedArtist>,
     ) {
         // Fetch already existing links to make better choices
-
         let existing_artist_links = sqlx::query_as::<Postgres, (i32, String)>(
             "SELECT * FROM artist_links WHERE spotify_id = ANY($1)",
         )
@@ -454,43 +450,53 @@ impl Database {
 
         let mut tx = self.pool.begin().await.unwrap();
 
-        // Insert links
-        let mut query_builder: QueryBuilder<Postgres> =
-            QueryBuilder::new(r#"Insert into artist_links (ann_id, spotify_id) "#);
+        if !links.is_empty() {
+            info!("Binding {} artists", links.len());
 
-        query_builder.push_values(links, |mut builder, link| {
-            builder.push_bind(link.0).push_bind(link.1);
-        });
+            // Insert links
+            let mut query_builder: QueryBuilder<Postgres> =
+                QueryBuilder::new(r#"Insert into artist_links (ann_id, spotify_id) "#);
 
-        query_builder.push("ON CONFLICT DO NOTHING");
-        query_builder.build().execute(&mut *tx).await.unwrap();
+            query_builder.push_values(links, |mut builder, link| {
+                builder.push_bind(link.0).push_bind(link.1);
+            });
+
+            query_builder.push(" ON CONFLICT DO NOTHING");
+
+            query_builder.build().execute(&mut *tx).await.unwrap();
+        }
 
         // Insert all artists as these could still be usefull without links
-        let mut query_builder: QueryBuilder<Postgres> =
-            QueryBuilder::new(r#"INSERT INTO new_artists (ann_id, names, groups_id, members) "#);
 
-        query_builder.push_values(anisong_artists, |mut builder, artist| {
-            builder
-                .push_bind(artist.id)
-                .push_bind(artist.names.clone())
-                .push_bind(
-                    artist
-                        .groups
-                        .as_ref()
-                        .map(|o| o.iter().map(|a| a.id).collect::<Vec<i32>>()),
-                )
-                .push_bind(
-                    artist
-                        .members
-                        .as_ref()
-                        .map(|o| o.iter().map(|a| a.id).collect::<Vec<i32>>()),
-                );
-        });
+        if !anisong_artists.is_empty() {
+            info!("Adding {} artists to the database", anisong_artists.len());
+            let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
+                r#"INSERT INTO new_artists (ann_id, names, groups_ids, members) "#,
+            );
 
-        query_builder.push("ON CONFLICT DO NOTHING");
+            query_builder.push_values(anisong_artists, |mut builder, artist| {
+                builder
+                    .push_bind(artist.id)
+                    .push_bind(artist.names.clone())
+                    .push_bind(
+                        artist
+                            .groups
+                            .as_ref()
+                            .map(|o| o.iter().map(|a| a.id).collect::<Vec<i32>>()),
+                    )
+                    .push_bind(
+                        artist
+                            .members
+                            .as_ref()
+                            .map(|o| o.iter().map(|a| a.id).collect::<Vec<i32>>()),
+                    );
+            });
 
-        let query = query_builder.build();
-        query.execute(&mut *tx).await.unwrap();
+            query_builder.push(" ON CONFLICT DO NOTHING");
+
+            let query = query_builder.build();
+            query.execute(&mut *tx).await.unwrap();
+        }
 
         tx.commit().await.unwrap();
     }
