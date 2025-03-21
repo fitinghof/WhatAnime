@@ -25,3 +25,6 @@ if __name__ == "__main__":
         "INSERT INTO artist_links (ann_id, spotify_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
         links,
     )
+
+    db.conn.commit()
+    cursor.close()
