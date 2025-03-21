@@ -306,7 +306,6 @@ impl DBAnime {
 
 #[derive(FromRow, Serialize, Deserialize, Debug, Clone)]
 pub struct DBArtist {
-    pub spotify_id: String,
     pub ann_id: i32,
     pub names: Vec<String>,
     pub groups_ids: Option<Vec<i32>>,

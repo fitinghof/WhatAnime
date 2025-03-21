@@ -49,12 +49,8 @@ impl Database {
                     .await,
                 );
 
-                self.try_add_artists(
-                    &vec![],
-                    best_anime[0].artists.iter().collect(),
-                    song.artists.iter().collect(),
-                )
-                .await;
+                self.try_add_artists(&best_anime[0].artists, &song.artists)
+                    .await;
             }
 
             let (mut hit, mut more) = self

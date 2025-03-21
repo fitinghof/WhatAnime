@@ -1,5 +1,10 @@
 
 -------------------------------------------------------------------------------------- back-end --------------------------------------------------------------------------------------
+ * For artist seperation:
+    * Make artist search by spotify_id go through join_table or whatever it is |Check|
+    * Make all new artists get added to the database, |Check|
+    * Make artists get joined if certainty is above AUTO_ADD_LIMIT |Check|
+    * Try and improve artist linking function, it's disgusting (Optional) |Yeah, should prob do this sometime perhaps maybe|
 
  * Make it so that stuff like AnimeIndex is a struct with a type and number rather than a single enum
 

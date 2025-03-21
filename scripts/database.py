@@ -58,6 +58,14 @@ class SongGroupLink(BaseModel):
     group_id: int
 
 
+class DBArtist(BaseModel):
+    spotify_id: str
+    ann_id: int
+    names: list[str]
+    groups_ids: list[int] | None
+    members: list[int] | None
+
+
 class DataBase:
     def __init__(self):
         load_dotenv()

@@ -304,7 +304,7 @@ impl Database {
             artists.iter().map(|a| a.ann_id).collect()
         } else {
             let artists = sqlx::query_as::<Postgres, DBArtist>(
-                "SELECT * FROM artists WHERE EXISTS (
+                "SELECT * FROM new_artists WHERE EXISTS (
                     SELECT 1
                     FROM unnest(names) AS name WHERE name ~* $1);",
             )
@@ -315,8 +315,8 @@ impl Database {
             .await
             .unwrap();
 
-            self.try_add_artists_variation(&artists, &track.artists)
-                .await;
+            // self.try_add_artists_variation(&artists, &track.artists)
+            //     .await;
 
             artists.iter().map(|a| a.ann_id).collect()
         };
@@ -355,62 +355,82 @@ impl Database {
         }
     }
 
-    pub async fn try_add_artists_variation(
-        &self,
-        anisong_artists: &Vec<DBArtist>,
-        spotify_artists: &Vec<SimplifiedArtist>,
-    ) {
-        let mut artists_to_add = Vec::new();
+    // pub async fn try_add_artists_variation(
+    //     &self,
+    //     anisong_artists: &Vec<DBArtist>,
+    //     spotify_artists: &Vec<SimplifiedArtist>,
+    // ) {
+    //     let mut artists_to_add = Vec::new();
 
-        for artist in anisong_artists {
-            let artist_pattern = create_artist_regex(artist.names.iter().collect());
-            let re = Regex::new(&artist_pattern).unwrap();
-            for sartist in spotify_artists {
-                if re.is_match(&sartist.name) {
-                    let mut new_artist = artist.clone();
-                    info!(
-                        "Binding ani artist {:?} to spotify artist {}",
-                        &new_artist.names, &sartist.name
-                    );
-                    new_artist.spotify_id = sartist.id.clone();
-                    artists_to_add.push(new_artist);
-                }
-            }
-        }
-        let mut tx = self.pool.begin().await.unwrap();
+    //     for artist in anisong_artists {
+    //         let artist_pattern = create_artist_regex(artist.names.iter().collect());
+    //         let re = Regex::new(&artist_pattern).unwrap();
+    //         for sartist in spotify_artists {
+    //             if re.is_match(&sartist.name) {
+    //                 let mut new_artist = artist.clone();
+    //                 info!(
+    //                     "Binding ani artist {:?} to spotify artist {}",
+    //                     &new_artist.names, &sartist.name
+    //                 );
+    //                 new_artist.spotify_id = sartist.id.clone();
+    //                 artists_to_add.push(new_artist);
+    //             }
+    //         }
+    //     }
+    //     let mut tx = self.pool.begin().await.unwrap();
 
-        for new_artist in artists_to_add {
-            let _ = sqlx::query!(
-                r#"INSERT INTO artists (spotify_id, ann_id, names, groups_ids, members)
-                VALUES ($1, $2, $3, $4, $5)
-                ON CONFLICT (spotify_id) DO NOTHING"#,
-                &new_artist.spotify_id,
-                &new_artist.ann_id,
-                &new_artist.names,
-                &new_artist.groups_ids.unwrap_or(vec![]),
-                &new_artist.members.unwrap_or(vec![]),
-            )
-            .execute(&mut *tx)
-            .await
-            .unwrap();
-        }
+    //     for new_artist in artists_to_add {
+    //         let _ = sqlx::query!(
+    //             r#"INSERT INTO artists (spotify_id, ann_id, names, groups_ids, members)
+    //             VALUES ($1, $2, $3, $4, $5)
+    //             ON CONFLICT (spotify_id) DO NOTHING"#,
+    //             &new_artist.spotify_id,
+    //             &new_artist.ann_id,
+    //             &new_artist.names,
+    //             &new_artist.groups_ids.unwrap_or(vec![]),
+    //             &new_artist.members.unwrap_or(vec![]),
+    //         )
+    //         .execute(&mut *tx)
+    //         .await
+    //         .unwrap();
+    //     }
 
-        tx.commit().await.unwrap();
-    }
+    //     tx.commit().await.unwrap();
+    // }
 
     pub async fn try_add_artists(
         &self,
-        already_existing_artists: &Vec<DBArtist>,
-        mut anisong_artists: Vec<&Artist>,
-        mut spotify_artists: Vec<&SimplifiedArtist>,
+        anisong_artists: &Vec<Artist>,
+        spotify_artists: &Vec<SimplifiedArtist>,
     ) {
-        for dbartist in already_existing_artists {
-            anisong_artists.retain(|a| a.id != dbartist.ann_id);
-            spotify_artists.retain(|a| a.id != dbartist.spotify_id);
+        // Fetch already existing links to make better choices
+
+        let existing_artist_links = sqlx::query_as::<Postgres, (i32, String)>(
+            "SELECT * FROM artist_links WHERE spotify_id = ANY($1)",
+        )
+        .bind(
+            spotify_artists
+                .iter()
+                .map(|a| a.id.clone())
+                .collect::<Vec<String>>(),
+        )
+        .fetch_all(&self.pool)
+        .await
+        .unwrap();
+
+        // make arrays of references to the artists so we can shuffle them around as we wish
+        let mut anisong_artists: Vec<&Artist> = anisong_artists.iter().collect();
+        let mut spotify_artists: Vec<&SimplifiedArtist> = spotify_artists.iter().collect();
+
+        // filter out stuff already added
+        for link in existing_artist_links {
+            anisong_artists.retain(|a| a.id != link.0);
+            spotify_artists.retain(|a| a.id != link.1);
         }
 
         let mut links = Vec::new();
 
+        // Find best match
         for artist in anisong_artists.clone() {
             let mut eval_spotify: Vec<(&SimplifiedArtist, f32)> = spotify_artists
                 .iter()
@@ -433,6 +453,8 @@ impl Database {
         }
 
         let mut tx = self.pool.begin().await.unwrap();
+
+        // Insert links
         let mut query_builder: QueryBuilder<Postgres> =
             QueryBuilder::new(r#"Insert into artist_links (ann_id, spotify_id) "#);
 
@@ -443,6 +465,7 @@ impl Database {
         query_builder.push("ON CONFLICT DO NOTHING");
         query_builder.build().execute(&mut *tx).await.unwrap();
 
+        // Insert all artists as these could still be usefull without links
         let mut query_builder: QueryBuilder<Postgres> =
             QueryBuilder::new(r#"INSERT INTO new_artists (ann_id, names, groups_id, members) "#);
 
@@ -615,6 +638,11 @@ impl Database {
                         && a.songName == hit_anime[0].song_name
                 });
 
+            // Add artists and try and add artist links
+            if let Some(artists) = anisong_anime_hits.first().map(|a| &a.artists) {
+                self.try_add_artists(&artists, &track.artists).await;
+            }
+
             // get group id.
             let group_id = self
                 .add_song_group_link(
@@ -699,12 +727,8 @@ impl Database {
 
                     // Try and add more artists to the database
                     if score > Self::ACCURACY_AUTOADD_LIMIT {
-                        self.try_add_artists(
-                            &artists_searched,
-                            anime_hits[0].artists.iter().collect(),
-                            track.artists.iter().collect(),
-                        )
-                        .await;
+                        self.try_add_artists(&anime_hits[0].artists, &track.artists)
+                            .await;
                     }
 
                     let group_id = if score > Self::ACCURACY_AUTOADD_LIMIT {

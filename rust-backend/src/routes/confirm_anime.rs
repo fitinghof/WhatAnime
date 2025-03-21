@@ -68,11 +68,7 @@ pub async fn confirm_anime(
     if anisongs.len() > 0 {
         app_state
             .database
-            .try_add_artists(
-                &vec![],
-                anisongs[0].artists.iter().collect(),
-                track.artists.iter().collect(),
-            )
+            .try_add_artists(&anisongs[0].artists, &track.artists)
             .await;
     }
 
