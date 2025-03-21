@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{Result, database::databasetypes::DBAnime, spotify::api::get_user};
+use crate::{Result, spotify::api::get_user};
 use axum::{Json, extract::State, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 use tower_sessions::Session;

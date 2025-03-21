@@ -11,7 +11,6 @@ use crate::types::{FrontendAnimeEntry, NewSong, SongHit, SongInfo, SongMiss};
 // use axum_sessions::async_session::chrono::Duration;
 use axum_sessions::async_session::log::info;
 use databasetypes::{DBAnime, DBArtist, SongGroup, SongGroupLink};
-use regex::{self, Regex};
 use regex_search::{create_artist_regex, process_artist_name};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{FromRow, Pool, Postgres, QueryBuilder};
@@ -627,12 +626,12 @@ impl Database {
         anisong_db: &AnisongClient,
         accuracy_cutoff: f32,
     ) -> Result<NewSong> {
-        let (mut hit_anime, more_by_artists, artists_ann_id, artists_searched, certainty) =
+        let (mut hit_anime, more_by_artists, artists_ann_id, _, certainty) =
             self.db_full_search(track).await.unwrap();
 
         if certainty == 100.0 {
             let anisong_animes = anisong_db
-                .get_animes_by_artists_ids(artists_ann_id)
+                .get_animes_by_artists_ids::<false>(artists_ann_id)
                 .await
                 .unwrap();
 
@@ -688,9 +687,10 @@ impl Database {
         } else {
             if artists_ann_id.len() > 0 {
                 let mut anisongs = anisong_db
-                    .get_animes_by_artists_ids(artists_ann_id.clone())
+                    .get_animes_by_artists_ids::<false>(artists_ann_id.clone())
                     .await
                     .unwrap();
+
                 let (mut anime_hits, score) =
                     AnisongClient::pick_best_by_song_name(&mut anisongs, &track.name).unwrap();
 
@@ -718,7 +718,7 @@ impl Database {
                     // fetch those artists animes
                     if !missing_artists.is_empty() {
                         let additional_anisongs = anisong_db
-                            .get_animes_by_artists_ids(missing_artists)
+                            .get_animes_by_artists_ids::<false>(missing_artists)
                             .await
                             .unwrap();
                         let (mut more_hits, mut more_by_artist): (Vec<Anime>, Vec<Anime>) =

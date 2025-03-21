@@ -7,8 +7,8 @@ from anisongdb import (
 )
 from database import DataBase
 
-artist_spotify_id = "1rOnNKoQhifOY4rIH4wMtk"
-artist_name = "Skirt"
+artist_spotify_id = "0xFsJRSOYJmmuozISzreTR"
+artist_name = "Toaka"
 sr = Search_Request(
     artist_search_filter=Search_Filter(
         search=artist_name,
@@ -34,17 +34,22 @@ if __name__ == "__main__":
         "If stuff looks good typ 'y'\n"
     )
 
-    if inp == "y" or inp == "Y":
+    if inp.lower().strip() in ("y", "yes"):
         db.conn.execute(
-            """INSERT INTO artists
-            (spotify_id, ann_id, names, groups_ids, members)
-            VALUES (%s, %s, %s, %s, %s)""",
+            """INSERT INTO new_artists
+            (ann_id, names, groups_ids, members)
+            VALUES (%s, %s, %s, %s)""",
             (
-                artist_spotify_id,
                 artist.id,
                 artist.names,
                 [a.id for a in artist.groups] if artist.groups else None,
                 [a.id for a in artist.members] if artist.members else None,
             ),
+        )
+        db.conn.execute(
+            """INSERT INTO artist_links
+            (ann_id, spotify_id)
+            VALUES (%s, %s)""",
+            (artist.id, artist_spotify_id),
         )
         db.conn.commit()

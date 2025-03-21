@@ -1,22 +1,13 @@
 
 -------------------------------------------------------------------------------------- back-end --------------------------------------------------------------------------------------
- * For artist seperation:
-    * Make artist search by spotify_id go through join_table or whatever it is |Check|
-    * Make all new artists get added to the database, |Check|
-    * Make artists get joined if certainty is above AUTO_ADD_LIMIT |Check|
-    * Try and improve artist linking function, it's disgusting (Optional) |Yeah, should prob do this sometime perhaps maybe|
 
  * Make it so that stuff like AnimeIndex is a struct with a type and number rather than a single enum
-
- * Spotify groups exists, there for, for database purposes, the same spotify id should be made bindable to multiple artists in some way.
 
  * Add manual anime bind script
 
  * Make user 'profiles' or rather save some info about the user in the database. Could include stuff like binds made, reports made, database mod perhaps to allow free binding and then only allow everyone else to make bind requests.
 
  * If no anisongs are found (typically due to ranked) in else of if 'certainty == 100.0' make it so that if the db search comese out fine it should count that as a hit and return that.
-
- * Add artist (CV.|Vo.|CV:[artistname]) unwrapping for anisong search and probably internal also soon
 
  * Make anisong part of database entries also get updated, this should prove minimal overhead but provide potential extra data to the anime every now and then
 

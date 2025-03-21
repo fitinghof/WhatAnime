@@ -209,8 +209,8 @@ class AnisongDB_Interface:
             respons: requests.models.Response = requests.post(
                 self._site + "/artist_ids_request", json=search.model_dump()
             )
-            print(f"Response Status Code: {respons.status_code}")
-            print(f"Response Text: {respons.text}")
+            # print(f"Response Status Code: {respons.status_code}")
+            # print(f"Response Text: {respons.text}")
             songlist = TypeAdapter(List[Song_Entry]).validate_python(respons.json())
         else:
             for artistID in artistIDs:
@@ -221,9 +221,18 @@ class AnisongDB_Interface:
                 respons: requests.models.Response = requests.post(
                     self._site + "/artist_ids_request", json=search.model_dump()
                 )
-                print(f"Response Status Code: {respons.status_code}")
-                print(f"Response Text: {respons.text}")
+                # print(f"Response Status Code: {respons.status_code}")
+                # print(f"Response Text: {respons.text}")
                 songlist.extend(
                     TypeAdapter(List[Song_Entry]).validate_python(respons.json())
                 )
         return list(set(songlist))
+
+
+if __name__ == "__main__":
+    db = AnisongDB_Interface()
+
+    s = Search_Request(anime_search_filter=Search_Filter(search="Suzume no Tojimari"))
+
+    for a in db.get_songs(s):
+        print(a.animeENName, a.artists, a.arrangers, a.composers)

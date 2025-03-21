@@ -28,15 +28,18 @@ impl AnisongClient {
         }
     }
 
-    pub async fn get_animes_by_artists_ids(&self, ids: Vec<i32>) -> Result<Vec<Anime>> {
+    pub async fn get_animes_by_artists_ids<const EXACT: bool>(
+        &self,
+        ids: Vec<i32>,
+    ) -> Result<Vec<Anime>> {
         if ids.is_empty() {
             return Ok(vec![]);
         }
 
         let search = ArtistIDSearchRequest {
             artist_ids: ids,
-            group_granularity: 0,
-            max_other_artist: 0,
+            group_granularity: if EXACT { 99 } else { 1 },
+            max_other_artist: if EXACT { 0 } else { 99 },
             ignore_duplicate: false,
             opening_filter: true,
             ending_filter: true,
@@ -84,7 +87,7 @@ impl AnisongClient {
         song_title: String,
     ) -> Result<Vec<Anime>> {
         Ok(self
-            .get_animes_by_artists_ids(artist_ids)
+            .get_animes_by_artists_ids::<true>(artist_ids)
             .await
             .unwrap()
             .into_iter()
