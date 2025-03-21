@@ -68,8 +68,7 @@ pub fn create_artist_regex(input: Vec<&String>) -> String {
             let parsed_artist = ARTIST_REGEX.replace_all(a, "$a");
             create_regex(&parsed_artist)
         })
-        .intersperse("|".to_string())
-        .collect()
+        .join("|")
 }
 
 /// Replaces using a precompiled regex
