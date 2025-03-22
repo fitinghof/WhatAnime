@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import AnimeEntry, { AnimeInfo } from "./AnimeEntry"; // use AnimeInfo and AnimeEntry from AnimeEntry.tsx
 
+interface Filters {
+    openings: boolean,
+    inserts: boolean,
+    endings: boolean,
+}
+
 const Update = () => {
     const [songInfo, setSongInfo] = useState<{
         title: string;
@@ -13,6 +19,8 @@ const Update = () => {
     const [separator2, setSeparator2] = useState<string>("");
     const [showConfirmButton, setShowConfirmButton] = useState<boolean>(false);
     const [spotify_id, setSpotifyId] = useState<string>("");
+
+    const [filters, setFilters] = useState<Filters>({ openings: true, inserts: true, endings: true });
 
     const fetchUpdate = (refresh: boolean = false) => {
         const fetch_address = `/api/update${refresh ? "?refresh=true" : ""}`;
@@ -89,7 +97,6 @@ const Update = () => {
 
     return (
         <div>
-            {/* Adjusted markup to match your CSS */}
             <div className="now-playing-container">
                 <div className="now-playing">
                     <img
@@ -105,38 +112,46 @@ const Update = () => {
                             {songInfo ? songInfo.artists.join(", ") : ""}
                         </p>
                     </div>
-                    {/* <div className="square-container">
-                        <div className="square-button">yo</div>
-                        <div className="square-button">yo</div>
-                        <div className="square-button">yo</div>
-                        <div className="square-button">yo</div>
-                    </div> */}
+                    <div className="square-container">
+                        <button className={`square-button ${filters.openings ? "square-button-on" : "square-button-off"}`} onClick={() => setFilters(prev => ({ ...prev, openings: !filters.openings }))}>Op</button>
+                        <button className={`square-button ${filters.inserts ? "square-button-on" : "square-button-off"}`} onClick={() => setFilters(prev => ({ ...prev, inserts: !filters.inserts }))}>In</button>
+                        <button className={`square-button ${filters.endings ? "square-button-on" : "square-button-off"}`} onClick={() => setFilters(prev => ({ ...prev, endings: !filters.endings }))}>Ed</button>
+                        <button className={`square-button ${true ? "square-button-on" : "square-button-off"}`}>-</button>
+                    </div>
                 </div>
             </div>
 
-            {separator1 && (
-                <div className="separator" id="matches">
-                    {separator1}
-                </div>
-            )}
+            {
+                separator1 && (
+                    <div className="separator" id="matches">
+                        {separator1}
+                    </div>
+                )
+            }
             <div className="anime-list" id="animes">
                 {animeList.map((anime, index) => (
-                    <AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} after_anime_bind={() => fetchUpdate(true)} />
+                    (anime.track_index.Ending && filters.endings || anime.track_index.Opening && filters.openings || anime.track_index.Insert && filters.inserts) ? (
+                        < AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} after_anime_bind={() => fetchUpdate(true)} />
+                    ) : null
                 ))}
             </div>
 
-            {separator2 && (
-                <div className="separator" id="matches2">
-                    {separator2}
-                </div>
-            )}
+            {
+                separator2 && (
+                    <div className="separator" id="matches2">
+                        {separator2}
+                    </div>
+                )
+            }
 
             <div className="anime-list" id="animes2">
                 {animeList2.map((anime, index) => (
-                    <AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} after_anime_bind={() => fetchUpdate(true)} />
+                    (anime.track_index.Ending && filters.endings || anime.track_index.Opening && filters.openings || anime.track_index.Insert && filters.inserts) ? (
+                        <AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} after_anime_bind={() => fetchUpdate(true)} />
+                    ) : null
                 ))}
             </div>
-        </div>
+        </div >
     );
 
 };

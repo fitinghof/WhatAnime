@@ -173,7 +173,15 @@ a {
     height: 100%;
 }
 
+.square-button-on {
+    background-color: #1b4d14;
+}
+
+.square-button-off {
+    background-color: #6e1b1b;
+}
+
 .square-button:hover {
-    background-color: #444444;
+    filter: brightness(65%);
     /* Change background color on hover */
 }

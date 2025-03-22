@@ -7,8 +7,8 @@ from anisongdb import (
 )
 from database import DataBase
 
-artist_spotify_id = "7usiekwkfBXIT1v92xDSAE"
-artist_name = "Rentarou Family"
+artist_spotify_id = "53y8LruFOofZwCNqDnxjYG"
+artist_name = "Sora Amamiya"
 sr = Search_Request(
     artist_search_filter=Search_Filter(
         search=artist_name,
@@ -38,7 +38,7 @@ if __name__ == "__main__":
         db.conn.execute(
             """INSERT INTO new_artists
             (ann_id, names, groups_ids, members)
-            VALUES (%s, %s, %s, %s)""",
+            VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING""",
             (
                 artist.id,
                 artist.names,
