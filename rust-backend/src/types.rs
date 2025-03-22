@@ -343,6 +343,7 @@ pub enum ContentUpdate {
     LoginRequired,
     NoUpdates,
     NotPlaying,
+    UnnapprovedUser,
 }
 
 impl IntoResponse for ContentUpdate {

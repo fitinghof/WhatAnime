@@ -64,6 +64,16 @@ const Update = () => {
                     setSeparator1("");
                 } else if (data === "LoginRequired") {
                     window.location.href = "/api/login";
+                } else if (data == "UnnapprovedUser") {
+                    setSongInfo({
+                        title: "You likely need to ask Simon for User Approval, spotify is annoying that way.",
+                        artists: [],
+                        album_picture_url: "/amq_icon_green.svg",
+                    });
+                    setAnimeList([]);
+                    setAnimeList2([]);
+                    setSeparator2("");
+                    setSeparator1("");
                 } else if (data == "NoUpdates") {
                 }
             })

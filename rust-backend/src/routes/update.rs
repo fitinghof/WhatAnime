@@ -67,6 +67,10 @@ pub async fn update(
                     warn!("Spotify return error code: {}", status_code);
                     return Ok(Json(ContentUpdate::NoUpdates));
                 }
+                CurrentlyPlayingResponses::BadOAuth => {
+                    warn!("Likely unnapproved user");
+                    return Ok(Json(ContentUpdate::UnnapprovedUser));
+                }
             };
 
             match current_song.item {

@@ -70,7 +70,7 @@ def parse_repports():
             case "s":
                 continue
             case "w":
-                if remove_song_link(report.spotify_id):
+                if remove_song_link(report.spotify_id, db=db):
                     cursor.execute(
                         "DELETE FROM reports WHERE report_id = %s", (report.report_id,)
                     )

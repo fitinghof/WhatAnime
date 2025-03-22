@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 import psycopg
+from psycopg.rows import dict_row
 import os
 from dotenv import load_dotenv
 
@@ -71,3 +72,4 @@ class DataBase:
         load_dotenv()
         database_url = os.getenv("DATABASE_URL")
         self.conn = psycopg.connect(database_url)
+        self.conn.row_factory = dict_row

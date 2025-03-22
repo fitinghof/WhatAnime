@@ -17,7 +17,7 @@ def remove_song_link(spotify_id: str, db: DataBase) -> bool:
             (spotify_id,),
         )
 
-        group_ids = [row[0] for row in cursor.fetchall()]
+        group_ids = [row["group_id"] for row in cursor.fetchall()]
 
         if group_ids:
             cursor.execute(
@@ -37,4 +37,4 @@ def remove_song_link(spotify_id: str, db: DataBase) -> bool:
 
 if __name__ == "__main__":
     db = DataBase()
-    remove_song_link("0Z51sIImtvHFIVomgeS1R7")
+    remove_song_link("0Z51sIImtvHFIVomgeS1R7", db)

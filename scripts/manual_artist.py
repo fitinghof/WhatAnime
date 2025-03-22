@@ -7,8 +7,8 @@ from anisongdb import (
 )
 from database import DataBase
 
-artist_spotify_id = "0xFsJRSOYJmmuozISzreTR"
-artist_name = "Toaka"
+artist_spotify_id = "7usiekwkfBXIT1v92xDSAE"
+artist_name = "Rentarou Family"
 sr = Search_Request(
     artist_search_filter=Search_Filter(
         search=artist_name,

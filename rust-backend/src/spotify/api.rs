@@ -107,7 +107,7 @@ pub async fn currently_playing(session: Session) -> Result<CurrentlyPlayingRespo
             response.json().await.unwrap(),
         )),
         axum::http::StatusCode::UNAUTHORIZED => Ok(CurrentlyPlayingResponses::BadToken),
-        axum::http::StatusCode::FORBIDDEN => Err(Error::BadOAuth),
+        axum::http::StatusCode::FORBIDDEN => Ok(CurrentlyPlayingResponses::BadOAuth),
         axum::http::StatusCode::TOO_MANY_REQUESTS => Ok(CurrentlyPlayingResponses::Ratelimited),
         status if status.is_server_error() => {
             warn!(

@@ -173,6 +173,7 @@ pub enum CurrentlyPlayingResponses {
     NotPlaying,
     BadToken,
     Ratelimited,
+    BadOAuth,
     SpotifyError(axum::http::StatusCode),
 }
 
