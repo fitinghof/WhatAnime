@@ -53,14 +53,15 @@ lazy_static! {
     };
 
     static ref ARTIST_REGEX: Regex = {
-        Regex::new(&r"(\w+)\s*\((CV|Vo)(:|\.)\s*(?P<a>.*?)\)").unwrap()
+        Regex::new(&r".*?\((CV|Vo)(:|\.)\s*(?P<a>.*?)\)").unwrap()
     };
 }
 
+/// Takes the actual artist name from 'Perhaps a character (CV: Actual Artist)' or returns original string
 pub fn process_artist_name(name: &str) -> String {
     ARTIST_REGEX.replace_all(name, "$a").trim().to_string()
 }
-// simply unwraps possible (CV:artistname) before calling create_regex
+/// simply unwraps possible (CV:artistname) before calling create_regex
 pub fn create_artist_regex(input: Vec<&String>) -> String {
     input
         .iter()
@@ -77,10 +78,10 @@ pub fn create_regex(input: &str) -> String {
         "^{}$",
         REPLACEMENT_REGEX.replace_all(input, |caps: &Captures| {
             let matched = caps.get(0).unwrap().as_str();
-            // Directly return the replacement from the map or the original match
+
             REPLACEMENT_RULES.get(matched).map_or_else(
-                || matched.to_string(),                 // No replacement, keep the match as is
-                |&replacement| replacement.to_string(), // Replacement exists, return it
+                || matched.to_string(),
+                |&replacement| replacement.to_string(),
             )
         })
     )

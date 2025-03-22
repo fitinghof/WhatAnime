@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import AnimeEntry, { AnimeInfo } from "./AnimeEntry"; // use AnimeInfo and AnimeEntry from AnimeEntry.tsx
+import ReportButton from "./report_window";
 
 interface Filters {
     openings: boolean,
@@ -22,7 +23,7 @@ const Update = () => {
 
     const [filters, setFilters] = useState<Filters>({ openings: true, inserts: true, endings: true });
 
-    const fetchUpdate = (refresh: boolean = false) => {
+    const fetchUpdate = (refresh: boolean = false, recursive: boolean = true) => {
         const fetch_address = `/api/update${refresh ? "?refresh=true" : ""}`;
 
         fetch(fetch_address, { credentials: "include" })
@@ -86,7 +87,9 @@ const Update = () => {
                 }
             })
             .catch((err) => console.error(err));
-        setTimeout(fetchUpdate, 5000);
+        if (recursive) {
+            setTimeout(fetchUpdate, 5000);
+        }
     };
 
     useEffect(() => {
@@ -123,31 +126,31 @@ const Update = () => {
 
             {
                 separator1 && (
-                    <div className="separator" id="matches">
+                    <div className="separator">
                         {separator1}
                     </div>
                 )
             }
-            <div className="anime-list" id="animes">
+            <div className="anime-list">
                 {animeList.map((anime, index) => (
                     (anime.track_index.Ending && filters.endings || anime.track_index.Opening && filters.openings || anime.track_index.Insert && filters.inserts) ? (
-                        < AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} after_anime_bind={() => fetchUpdate(true)} />
+                        < AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} after_anime_bind={() => fetchUpdate(true, false)} />
                     ) : null
                 ))}
             </div>
 
             {
                 separator2 && (
-                    <div className="separator" id="matches2">
+                    <div className="separator">
                         {separator2}
                     </div>
                 )
             }
 
-            <div className="anime-list" id="animes2">
+            <div className="anime-list">
                 {animeList2.map((anime, index) => (
                     (anime.track_index.Ending && filters.endings || anime.track_index.Opening && filters.openings || anime.track_index.Insert && filters.inserts) ? (
-                        <AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} after_anime_bind={() => fetchUpdate(true)} />
+                        <AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} after_anime_bind={() => fetchUpdate(true, false)} />
                     ) : null
                 ))}
             </div>

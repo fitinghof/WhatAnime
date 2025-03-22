@@ -22,8 +22,6 @@
 
  * Add song report button
 
- * Add filters for openings / inserts / endings
-
  * Group stuff from the same anime?
 
  * Make more by artists include composer and arranger, perhaps in it's own section.

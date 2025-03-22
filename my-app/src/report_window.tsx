@@ -3,7 +3,7 @@ import { useState } from "react";
 import './report_window.css'
 
 interface ReportInfo {
-    ann_song_id: number,
+    ann_song_id: number | null,
     spotify_song_id: string,
 }
 
