@@ -6,9 +6,9 @@ def bind_song() -> bool:
     # return NotImplementedError
     anisong_db = AnisongDB_Interface()
     db = DataBase()
-    spotify_id = input("Please provide the spotify id below\n")
+    spotify_id: str = input("Please provide the spotify id below\n")
     inp = input(
-        f"Does this link to the correct song?\nhttps://open.spotify.com/track/{spotify_id}"
+        f"Does this link to the correct song?\nhttps://open.spotify.com/track/{spotify_id}\n"
     )
     if inp.lower().strip() not in ("y", "yes"):
         return False
@@ -20,7 +20,7 @@ def bind_song() -> bool:
     anime_song = None
     for song in anime_songs:
         inp = input(
-            f"Is this the correct song?\n{song.songName}\n{[a.names for a in song.artists]}"
+            f"Is this the correct song?\nSong Title: {song.songName}\nArtists: {[a.names for a in song.artists]}\n"
         )
         if inp in ("y", "yes"):
             anime_song = song
@@ -29,4 +29,49 @@ def bind_song() -> bool:
         print("Couldn't find the song")
         return False
 
-    # Painfull insert since we transform some strings to i16 on the backend which must be done here to
+    artist_ids: list[int] = [int(a.id) for a in anime_song.artists]
+
+    cursor = db.conn.cursor()
+    cursor.execute(
+        "SELECT group_id FROM song_groups WHERE song_title = %s AND artist_ids = %s::integer[]",
+        (anime_song.songName, artist_ids),
+    )
+    group_id = cursor.fetchone()
+    if group_id is None:
+        cursor.execute(
+            "INSERT INTO song_groups (song_title, artist_ids) VALUES (%s, %s) RETURNING group_id",
+            (anime_song.songName, artist_ids),
+        )
+        group_id = cursor.fetchone()
+
+    if group_id is None:
+        print("Something went bad")
+        return False
+
+    group_id = group_id["group_id"]
+
+    cursor.execute(
+        "INSERT INTO song_group_links (spotify_id, group_id) VALUES (%s, %s)",
+        (spotify_id, group_id),
+    )
+
+    # this part is still needed
+    cursor.execute(
+        "UPDATE animes SET song_group_id = %s WHERE song_name = %s AND artists_ann_id = %s::integer[] RETURNING (title_eng)",
+        (group_id, anime_song.songName, artist_ids),
+    )
+
+    print("Song is successfully linked")
+    bound_animes = [a["title_eng"] for a in cursor.fetchall()]
+
+    print(f"Binded following animes:\n{bound_animes}")
+
+    db.conn.commit()
+    cursor.close()
+
+
+if __name__ == "__main__":
+    bind_song()
+
+# 5P8lyudWE7HQxb4ludLbEm
+# Renai Circulation

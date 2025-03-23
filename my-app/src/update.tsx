@@ -7,6 +7,10 @@ interface Filters {
     endings: boolean,
 }
 
+function visible(anime: AnimeInfo, filters: Filters): boolean {
+    return ((anime.track_index.Ending !== undefined) && filters.endings || (anime.track_index.Opening !== undefined) && filters.openings || (anime.track_index.Insert !== undefined) && filters.inserts)
+}
+
 const Update = () => {
     const [songInfo, setSongInfo] = useState<{
         title: string;
@@ -131,7 +135,7 @@ const Update = () => {
             }
             <div className="anime-list">
                 {animeList.map((anime, index) => (
-                    (anime.track_index.Ending && filters.endings || anime.track_index.Opening && filters.openings || anime.track_index.Insert && filters.inserts) ? (
+                    visible(anime, filters) ? (
                         < AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} after_anime_bind={() => fetchUpdate(true, false)} />
                     ) : null
                 ))}
@@ -147,7 +151,7 @@ const Update = () => {
 
             <div className="anime-list">
                 {animeList2.map((anime, index) => (
-                    (anime.track_index.Ending && filters.endings || anime.track_index.Opening && filters.openings || anime.track_index.Insert && filters.inserts) ? (
+                    visible(anime, filters) ? (
                         <AnimeEntry key={index} anime={anime} show_confirm_button={showConfirmButton} spotify_song_id={spotify_id} after_anime_bind={() => fetchUpdate(true, false)} />
                     ) : null
                 ))}

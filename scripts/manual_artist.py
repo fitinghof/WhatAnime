@@ -7,8 +7,9 @@ from anisongdb import (
 )
 from database import DataBase
 
-artist_spotify_id = "53y8LruFOofZwCNqDnxjYG"
-artist_name = "Sora Amamiya"
+# Rie Kugimiya, Yui Horie, Eri Kitamura
+artist_spotify_id = "7e85JGlHFZ6FaQl01gyNLh"
+artist_name = "Eri Kitamura"
 sr = Search_Request(
     artist_search_filter=Search_Filter(
         search=artist_name,
