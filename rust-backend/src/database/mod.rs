@@ -440,7 +440,7 @@ impl Database {
                 })
                 .collect();
 
-            eval_spotify.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            eval_spotify.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
             if !eval_spotify.is_empty() && eval_spotify[0].1 > Self::ACCURACY_AUTOADD_LIMIT {
                 links.push((artist.id, eval_spotify[0].0.id.clone()));

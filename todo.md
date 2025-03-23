@@ -3,7 +3,7 @@
 
  * Make user 'profiles' or rather save some info about the user in the database. Could include stuff like binds made, reports made, database mod perhaps to allow free binding and then only allow everyone else to make bind requests.
 
- * Make it so that stuff like AnimeIndex is a struct with a type and number rather than a single enum
+ * Make it so that stuff like AnimeIndex is a struct with a type and number rather than a single enum (Postgresql supports enums.. heh)
 
  * Add manual anime bind script (apparantly slightly painful)
 

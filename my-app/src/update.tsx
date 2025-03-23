@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import AnimeEntry, { AnimeInfo } from "./AnimeEntry"; // use AnimeInfo and AnimeEntry from AnimeEntry.tsx
-import ReportButton from "./report_window";
 
 interface Filters {
     openings: boolean,
@@ -95,7 +94,6 @@ const Update = () => {
     useEffect(() => {
         // Run immediately, then every 5 seconds (5000ms)
         return () => fetchUpdate(true);
-
     }, []);
 
     return (
